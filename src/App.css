@@ -71,10 +71,11 @@ body {
 }
 
 /* On real mobile, fill the screen */
-@media (max-width: 430px) {
+@media (max-width: 768px) {
   body { padding: 0; background: var(--bg); }
   .app-frame { align-items: flex-start; min-height: 100dvh; }
   .app-shell {
+    max-width: 100%;
     border-radius: 0;
     border: none;
     height: 100dvh;
