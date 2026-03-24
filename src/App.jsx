@@ -104,28 +104,52 @@ const ACTIVITY_COLORS = {
 function Gauge({ used, goal }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
-  const circumference = 2 * Math.PI * 36;
+  const circumference = 2 * Math.PI * 54;
   const ringPct = Math.min(rawPct, 100);
   const offset = circumference - (ringPct / 100) * circumference;
   const ringColor = over ? "#E24B4A" : "#378ADD";
+  const trackColor = over ? "rgba(226,75,74,0.2)" : "rgba(255,255,255,0.15)";
 
   return (
-    <div className="gauge-card" style={over ? { background: "rgba(226,75,74,0.08)", borderColor: "rgba(226,75,74,0.3)" } : {}}>
-      <svg className="gauge-ring" viewBox="0 0 88 88">
-        <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="7" />
-        <circle cx="44" cy="44" r="36" fill="none" stroke={ringColor} strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={circumference} strokeDashoffset={offset} transform="rotate(-90 44 44)" />
-        <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#ffffff" fontFamily="DM Mono, monospace">today</text>
-        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill={over ? "#E24B4A" : "#ffffff"} fontFamily="DM Mono, monospace">{rawPct}%</text>
-      </svg>
-      <div className="gauge-info">
-        <div className="gauge-litres" style={over ? { color: "#E24B4A" } : {}}>{used} L</div>
-        <div className="gauge-sublabel">of {goal} L daily goal</div>
-        <div className="gauge-bar-wrap">
-          <div className="gauge-bar-fill" style={{ width: "100%", background: over ? "#E24B4A" : undefined }} />
+    <div className="gauge-card" style={over ? { borderColor: "rgba(226,75,74,0.4)" } : {}}>
+      {/* Ring */}
+      <div style={{ flexShrink: 0 }}>
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="54" fill="none" stroke={trackColor} strokeWidth="8" />
+          <circle cx="55" cy="55" r="54" fill="none" stroke={ringColor} strokeWidth="8"
+            strokeLinecap="round" strokeDasharray={circumference}
+            strokeDashoffset={offset} transform="rotate(-90 55 55)" />
+          <text x="55" y="50" textAnchor="middle" fontSize="11" fontWeight="500"
+            fill="rgba(255,255,255,0.7)" fontFamily="DM Mono, monospace">today</text>
+          <text x="55" y="68" textAnchor="middle" fontSize="15" fontWeight="700"
+            fill={over ? "#E24B4A" : "#ffffff"} fontFamily="DM Mono, monospace">{rawPct}%</text>
+        </svg>
+      </div>
+      {/* Info — all text constrained, no overflow possible */}
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+        <div style={{
+          fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)",
+          color: over ? "#E24B4A" : "var(--accent-dark)",
+          letterSpacing: "-0.5px", lineHeight: 1.1,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+        }}>
+          {used} L
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>
+          of {goal} L daily goal
+        </div>
+        <div style={{
+          background: over ? "rgba(226,75,74,0.2)" : "rgba(255,255,255,0.15)",
+          borderRadius: 99, height: 5, marginTop: 10, overflow: "hidden"
+        }}>
+          <div style={{
+            height: "100%", width: "100%",
+            background: ringColor, borderRadius: 99,
+            transition: "background 0.3s"
+          }} />
         </div>
         {over && (
-          <div style={{ fontSize: 11, color: "#E24B4A", marginTop: 6, fontWeight: 500 }}>
+          <div style={{ fontSize: 11, color: "#E24B4A", marginTop: 6, fontWeight: 600 }}>
             {used - goal} L over daily goal
           </div>
         )}
