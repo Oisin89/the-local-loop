@@ -168,9 +168,12 @@ function HomeTab({ user, activities, dailyGoal }) {
               <div className="activity-item" key={a.id}>
                 <div className="activity-dot" style={{ background: ACTIVITY_COLORS[a.type] || "#95A5A6" }} />
                 <span className="activity-name">{a.type}</span>
-                <span className="activity-meta">
-                  {a.litres} L · {isSameDay(a.createdAt, now) ? "Today" : isYesterday(a.createdAt) ? "Yesterday" : ""} {formatTime(a.createdAt)}
-                </span>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, color: "var(--text2)", fontFamily: "var(--mono)" }}>{a.litres} L</div>
+                  <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>
+                    {isSameDay(a.createdAt, now) ? "Today" : isYesterday(a.createdAt) ? "Yesterday" : ""} {formatTime(a.createdAt)}
+                  </div>
+                </div>
               </div>
             ))}
           </div>

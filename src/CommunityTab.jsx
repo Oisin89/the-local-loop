@@ -251,7 +251,9 @@ export default function CommunityTab({ currentUser }) {
                       <div className="activity-name">{f.displayName || "User"}</div>
                       <div className="activity-detail">{f.email}</div>
                     </div>
-                    <button className="remove-btn" onClick={() => removeFriend(f)}>Remove</button>
+                    <button className="icon-btn" onClick={() => removeFriend(f)} title="Remove friend">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                   </div>
                 );
               })}
@@ -302,7 +304,9 @@ export default function CommunityTab({ currentUser }) {
                         <div className="activity-name">{r.toUser?.displayName || "User"}</div>
                         <div className="activity-detail">{r.toUser?.email}</div>
                       </div>
-                      <button className="remove-btn" onClick={() => cancelRequest(r)}>Cancel</button>
+                      <button className="icon-btn" onClick={() => cancelRequest(r)} title="Cancel request">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
                     </div>
                   );
                 })}
