@@ -104,7 +104,7 @@ const ACTIVITY_COLORS = {
 function Gauge({ used, goal }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
-  const circumference = 2 * Math.PI * 54;
+  const circumference = 2 * Math.PI * 48;
   const ringPct = Math.min(rawPct, 100);
   const offset = circumference - (ringPct / 100) * circumference;
   const ringColor = over ? "#E24B4A" : "#378ADD";
@@ -115,8 +115,8 @@ function Gauge({ used, goal }) {
       {/* Ring */}
       <div style={{ flexShrink: 0 }}>
         <svg width="110" height="110" viewBox="0 0 110 110">
-          <circle cx="55" cy="55" r="54" fill="none" stroke={trackColor} strokeWidth="8" />
-          <circle cx="55" cy="55" r="54" fill="none" stroke={ringColor} strokeWidth="8"
+          <circle cx="55" cy="55" r="48" fill="none" stroke={trackColor} strokeWidth="8" />
+          <circle cx="55" cy="55" r="48" fill="none" stroke={ringColor} strokeWidth="8"
             strokeLinecap="round" strokeDasharray={circumference}
             strokeDashoffset={offset} transform="rotate(-90 55 55)" />
           <text x="55" y="50" textAnchor="middle" fontSize="11" fontWeight="500"
@@ -186,7 +186,7 @@ function ConservationTips() {
         setIndex(i => (i + 1) % TIPS.length);
         setVisible(true);
       }, 300);
-    }, 5000);
+    }, 9000);
     return () => clearInterval(interval);
   }, []);
 
