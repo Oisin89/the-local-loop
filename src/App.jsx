@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   doc, setDoc, getDoc, updateDoc,
   collection, query, orderBy, onSnapshot,
-  serverTimestamp
+  serverTimestamp, increment
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import LoginScreen from "./LoginScreen";
@@ -98,6 +98,124 @@ const ACTIVITY_COLORS = {
   "Tap running":     "#2ECC71",
   "Other":           "#95A5A6",
 };
+
+// ─── Badge definitions ────────────────────────────────────────────────────────
+
+function groupByDay(activities) {
+  const map = {};
+  activities.forEach(a => {
+    const d = toDate(a.createdAt);
+    if (!d) return;
+    const key = d.toDateString();
+    map[key] = (map[key] || 0) + (a.litres || 0);
+  });
+  return map;
+}
+
+function computeStreak(activities, dailyGoal) {
+  const now = new Date();
+  let streak = 0;
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const key = d.toDateString();
+    const dayActs = activities.filter(a => { const ad = toDate(a.createdAt); return ad && ad.toDateString() === key; });
+    const dayTotal = dayActs.reduce((s, a) => s + (a.litres || 0), 0);
+    if (dayActs.length > 0 && dayTotal <= dailyGoal) {
+      streak++;
+    } else if (i === 0 && dayActs.length === 0) {
+      continue;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+export const BADGE_DEFS = [
+  {
+    id: "first_drop",
+    name: "First Drop",
+    desc: "Log your first water activity",
+    emoji: "💧",
+    color: "#4A97E8",
+    check: ({ activities }) => activities.length >= 1,
+  },
+  {
+    id: "goal_getter",
+    name: "Goal Getter",
+    desc: "Finish a day under your daily goal",
+    emoji: "🎯",
+    color: "#27AE60",
+    check: ({ activities, dailyGoal }) =>
+      Object.values(groupByDay(activities)).some(t => t > 0 && t <= dailyGoal),
+  },
+  {
+    id: "eco_saver",
+    name: "Eco Saver",
+    desc: "Use under 100 L in a single day",
+    emoji: "🌱",
+    color: "#27AE60",
+    check: ({ activities }) =>
+      Object.values(groupByDay(activities)).some(t => t > 0 && t <= 100),
+  },
+  {
+    id: "logger_10",
+    name: "Tracking Pro",
+    desc: "Log 10 water activities",
+    emoji: "📊",
+    color: "#9B59B6",
+    check: ({ activities }) => activities.length >= 10,
+  },
+  {
+    id: "challenge_first",
+    name: "Challenge Accepted",
+    desc: "Complete your first daily challenge",
+    emoji: "⭐",
+    color: "#C9A30A",
+    check: ({ challengesCompleted }) => challengesCompleted >= 1,
+  },
+  {
+    id: "streak_3",
+    name: "On a Roll",
+    desc: "Hit your daily goal 3 days in a row",
+    emoji: "🔥",
+    color: "#E67E22",
+    check: ({ streak }) => streak >= 3,
+  },
+  {
+    id: "challenge_7",
+    name: "Challenge Champ",
+    desc: "Complete 7 daily challenges",
+    emoji: "🏅",
+    color: "#C9A30A",
+    check: ({ challengesCompleted }) => challengesCompleted >= 7,
+  },
+  {
+    id: "streak_7",
+    name: "Week Warrior",
+    desc: "Hit your daily goal 7 days in a row",
+    emoji: "⚡",
+    color: "#F1C40F",
+    check: ({ streak }) => streak >= 7,
+  },
+  {
+    id: "streak_14",
+    name: "Fortnight Flow",
+    desc: "Hit your daily goal 14 days in a row",
+    emoji: "🌊",
+    color: "#4A97E8",
+    check: ({ streak }) => streak >= 14,
+  },
+  {
+    id: "streak_30",
+    name: "Water Hero",
+    desc: "Hit your daily goal 30 days in a row",
+    emoji: "🏆",
+    color: "#C9A30A",
+    check: ({ streak }) => streak >= 30,
+  },
+];
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
@@ -390,6 +508,7 @@ function DailyChallenge({ user }) {
     await updateDoc(doc(db, "users", user.uid), {
       challengeDate: todayStr,
       challengeDone: true,
+      challengesCompleted: increment(1),
     });
     setDone(true);
     setSaving(false);
@@ -709,7 +828,7 @@ function HomeTab({ user, activities, dailyGoal }) {
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
-function ProfileTab({ user, dailyGoal, onGoalChange }) {
+function ProfileTab({ user, dailyGoal, onGoalChange, earnedBadgeIds }) {
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput]     = useState(dailyGoal);
   const [saving, setSaving]           = useState(false);
@@ -729,7 +848,7 @@ function ProfileTab({ user, dailyGoal, onGoalChange }) {
     setEditingGoal(false);
   };
 
-  const BADGES = ["7-day streak", "Goal crusher", "Eco saver"];
+  const earnedCount = earnedBadgeIds.length;
 
   return (
     <div className="page">
@@ -746,9 +865,23 @@ function ProfileTab({ user, dailyGoal, onGoalChange }) {
       </div>
 
       <div className="section">
-        <div className="section-label">Badges</div>
-        <div className="badge-row">
-          {BADGES.map(b => <div className="badge" key={b}>{b}</div>)}
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+          <div className="section-label" style={{ marginBottom: 0 }}>Badges</div>
+          <span style={{ fontSize: 12, color: "var(--text2)" }}>
+            {earnedCount} / {BADGE_DEFS.length} earned
+          </span>
+        </div>
+        <div className="badge-grid">
+          {BADGE_DEFS.map(b => {
+            const earned = earnedBadgeIds.includes(b.id);
+            return (
+              <div key={b.id} className={`badge-card${earned ? " earned" : " locked"}`}>
+                <span className="badge-card-emoji">{earned ? b.emoji : "🔒"}</span>
+                <div className="badge-card-name">{b.name}</div>
+                <div className="badge-card-desc">{b.desc}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -810,11 +943,13 @@ const TABS = [
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [user,       setUser]       = useState(undefined);
-  const [activeTab,  setActiveTab]  = useState("home");
-  const [dailyGoal,  setDailyGoal]  = useState(150);
-  const [activities, setActivities] = useState([]);
+  const [user,                 setUser]                 = useState(undefined);
+  const [activeTab,            setActiveTab]            = useState("home");
+  const [dailyGoal,            setDailyGoal]            = useState(150);
+  const [activities,           setActivities]           = useState([]);
+  const [challengesCompleted,  setChallengesCompleted]  = useState(0);
 
+  // Auth + initial profile load
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -825,12 +960,6 @@ export default function App() {
           photoURL: firebaseUser.photoURL,
           lastSeen: serverTimestamp(),
         }, { merge: true });
-
-        const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (snap.exists() && snap.data().dailyGoal) {
-          setDailyGoal(snap.data().dailyGoal);
-        }
-
         setUser(firebaseUser);
       } else {
         setUser(null);
@@ -839,6 +968,19 @@ export default function App() {
     return unsub;
   }, []);
 
+  // Live listener on user doc — picks up dailyGoal + challengesCompleted changes instantly
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), snap => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (data.dailyGoal)            setDailyGoal(data.dailyGoal);
+      if (data.challengesCompleted != null) setChallengesCompleted(data.challengesCompleted);
+    });
+    return unsub;
+  }, [user]);
+
+  // Activities listener
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -850,6 +992,14 @@ export default function App() {
     });
     return unsub;
   }, [user]);
+
+  // Compute earned badges reactively
+  const earnedBadgeIds = useMemo(() => {
+    const streak = computeStreak(activities, dailyGoal);
+    return BADGE_DEFS
+      .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted }))
+      .map(b => b.id);
+  }, [activities, dailyGoal, challengesCompleted]);
 
   if (user === undefined) {
     return (
@@ -868,7 +1018,7 @@ export default function App() {
       case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} />;
       case "activities": return <ActivitiesTab currentUser={user} />;
       case "community":  return <CommunityTab currentUser={user} />;
-      case "profile":    return <ProfileTab user={user} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} />;
+      case "profile":    return <ProfileTab user={user} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} earnedBadgeIds={earnedBadgeIds} />;
       default:           return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} />;
     }
   };
