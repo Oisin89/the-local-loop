@@ -397,16 +397,6 @@ function HomeTab({ user, activities, dailyGoal }) {
             <div className="stat-lbl">vs last week</div>
           </div>
         </div>
-        <div className="stat-row">
-          <div className="stat-card">
-            <div className="stat-value">{goalsMet}</div>
-            <div className="stat-lbl">Goals met</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{streak}-day</div>
-            <div className="stat-lbl">streak</div>
-          </div>
-        </div>
       </div>
 
       <ConservationTips />
