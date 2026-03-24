@@ -156,7 +156,7 @@ body {
 
 /* ─── Screen ─────────────────────────────────────────────────────────────── */
 
-.screen { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.screen { flex: 1; width: 100%; min-width: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
 .screen::-webkit-scrollbar { display: none; }
 
 /* ─── Tab bar ────────────────────────────────────────────────────────────── */
@@ -195,13 +195,14 @@ body {
 
 /* ─── Page layout ────────────────────────────────────────────────────────── */
 
-.page { padding-bottom: 8px; }
+.page { padding-bottom: 8px; width: 100%; min-width: 0; }
 
 .page-header {
   padding: 20px 20px 12px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .page-title {
@@ -209,6 +210,9 @@ body {
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .greeting { font-size: 13px; color: var(--text2); margin-top: 2px; }
@@ -235,17 +239,22 @@ body {
   align-items: center;
   gap: 16px;
   border: 0.5px solid var(--border);
+  overflow: hidden;
+  min-width: 0;
 }
 
 .gauge-ring { width: 88px; height: 88px; flex-shrink: 0; }
-.gauge-info { flex: 1; }
+.gauge-info { flex: 1; min-width: 0; overflow: hidden; }
 
 .gauge-litres {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   color: var(--accent-dark);
   letter-spacing: -0.5px;
   font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gauge-sublabel { font-size: 13px; color: var(--text2); margin-top: 2px; }
