@@ -42,9 +42,13 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100dvh;
+  min-height: 100svh;
   padding: 16px;
+  overscroll-behavior: none;
 }
+
+/* Prevent iOS/Android Chrome from zooming on input focus */
+input, textarea, select { font-size: 16px; }
 
 /* ─── Shared frame + shell (used by all screens) ─────────────────────────── */
 
@@ -53,14 +57,14 @@ body {
   justify-content: center;
   align-items: center;
   width: 100%;
-  min-height: 100dvh;
+  min-height: 100svh;
 }
 
 .app-shell {
   width: 100%;
   max-width: 390px;
   height: 844px;
-  max-height: 100dvh;
+  max-height: 100svh;
   background: var(--bg);
   border-radius: 36px;
   border: 0.5px solid var(--border);
@@ -547,7 +551,7 @@ body {
   background: var(--bg2);
   border: 0.5px solid var(--border);
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: var(--font);
   color: var(--text);
   outline: none;
@@ -779,7 +783,7 @@ body {
   background: var(--bg);
   border: 0.5px solid var(--accent);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: var(--mono);
   color: var(--text);
   outline: none;
