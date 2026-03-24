@@ -104,28 +104,52 @@ const ACTIVITY_COLORS = {
 function Gauge({ used, goal }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
-  const circumference = 2 * Math.PI * 48;
-  const ringPct = Math.min(rawPct, 100);
-  const offset = circumference - (ringPct / 100) * circumference;
+  const fillPct = Math.min(rawPct, 100);
   const ringColor = over ? "#E24B4A" : "#378ADD";
-  const trackColor = over ? "rgba(226,75,74,0.2)" : "rgba(255,255,255,0.15)";
+
+  // Water drop geometry (viewBox 0 0 90 122)
+  const dropPath = "M 45 5 C 65 30, 83 60, 83 82 A 38 38 0 0 1 7 82 C 7 60, 25 30, 45 5 Z";
+  const dropBottom = 120;
+  const dropTip = 5;
+  const totalDropH = dropBottom - dropTip;
+  const waterY = dropBottom - (fillPct / 100) * totalDropH;
 
   return (
     <div className="gauge-card" style={over ? { borderColor: "rgba(226,75,74,0.4)" } : {}}>
-      {/* Ring */}
+      {/* Water droplet */}
       <div style={{ flexShrink: 0 }}>
-        <svg width="110" height="110" viewBox="0 0 110 110">
-          <circle cx="55" cy="55" r="48" fill="none" stroke={trackColor} strokeWidth="8" />
-          <circle cx="55" cy="55" r="48" fill="none" stroke={ringColor} strokeWidth="8"
-            strokeLinecap="round" strokeDasharray={circumference}
-            strokeDashoffset={offset} transform="rotate(-90 55 55)" />
-          <text x="55" y="50" textAnchor="middle" fontSize="11" fontWeight="500"
-            fill="rgba(255,255,255,0.7)" fontFamily="DM Mono, monospace">today</text>
-          <text x="55" y="68" textAnchor="middle" fontSize="15" fontWeight="700"
-            fill={over ? "#E24B4A" : "#ffffff"} fontFamily="DM Mono, monospace">{rawPct}%</text>
+        <svg width="90" height="122" viewBox="0 0 90 122">
+          <defs>
+            <clipPath id="dropClip">
+              <path d={dropPath} />
+            </clipPath>
+          </defs>
+          {/* Track fill */}
+          <path d={dropPath} fill={over ? "rgba(226,75,74,0.15)" : "rgba(55,138,221,0.15)"} />
+          {/* Rising water fill */}
+          <rect
+            x="0" y={waterY}
+            width="90" height={Math.max(0, dropBottom - waterY + 4)}
+            clipPath="url(#dropClip)"
+            fill={ringColor}
+            opacity="0.88"
+            style={{ transition: "y 0.6s ease, height 0.6s ease" }}
+          />
+          {/* Outline */}
+          <path d={dropPath} fill="none"
+            stroke={over ? "rgba(226,75,74,0.55)" : "rgba(55,138,221,0.45)"}
+            strokeWidth="1.5" />
+          {/* Text backdrop */}
+          <rect x="27" y="65" width="36" height="33" rx="6"
+            fill="rgba(0,0,0,0.22)" clipPath="url(#dropClip)" />
+          {/* Labels */}
+          <text x="45" y="77" textAnchor="middle" fontSize="9.5" fontWeight="500"
+            fill="rgba(255,255,255,0.82)" fontFamily="DM Sans, sans-serif">today</text>
+          <text x="45" y="92" textAnchor="middle" fontSize="14" fontWeight="700"
+            fill="white" fontFamily="DM Mono, monospace">{rawPct}%</text>
         </svg>
       </div>
-      {/* Info — all text constrained, no overflow possible */}
+      {/* Info */}
       <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
         <div style={{
           fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)",
@@ -138,15 +162,29 @@ function Gauge({ used, goal }) {
         <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>
           of {goal} L daily goal
         </div>
-        <div style={{
-          background: over ? "rgba(226,75,74,0.2)" : "rgba(255,255,255,0.15)",
-          borderRadius: 99, height: 5, marginTop: 10, overflow: "hidden"
-        }}>
+        {/* Progress bar with live % label */}
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 7 }}>
           <div style={{
-            height: "100%", width: "100%",
-            background: ringColor, borderRadius: 99,
-            transition: "background 0.3s"
-          }} />
+            flex: 1,
+            background: over ? "rgba(226,75,74,0.15)" : "rgba(55,138,221,0.15)",
+            borderRadius: 99, height: 5, overflow: "hidden"
+          }}>
+            <div style={{
+              height: "100%",
+              width: `${fillPct}%`,
+              background: ringColor,
+              borderRadius: 99,
+              transition: "width 0.6s ease, background 0.3s"
+            }} />
+          </div>
+          <span style={{
+            fontSize: 11, fontWeight: 700,
+            color: ringColor,
+            fontFamily: "var(--mono)",
+            flexShrink: 0, minWidth: 34, textAlign: "right"
+          }}>
+            {rawPct}%
+          </span>
         </div>
         {over && (
           <div style={{ fontSize: 11, color: "#E24B4A", marginTop: 6, fontWeight: 600 }}>
@@ -186,7 +224,7 @@ function ConservationTips() {
         setIndex(i => (i + 1) % TIPS.length);
         setVisible(true);
       }, 300);
-    }, 9000);
+    }, 7000);
     return () => clearInterval(interval);
   }, []);
 
