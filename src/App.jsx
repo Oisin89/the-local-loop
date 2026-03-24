@@ -9,7 +9,7 @@ import "./App.css";
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
 function IconHome({ active }) {
-  const c = active ? "#1D9E75" : "var(--icon)";
+  const c = active ? "var(--accent)" : "var(--icon)";
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -19,7 +19,7 @@ function IconHome({ active }) {
 }
 
 function IconActivity({ active }) {
-  const c = active ? "#1D9E75" : "var(--icon)";
+  const c = active ? "var(--accent)" : "var(--icon)";
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
       <path d="M12 2a5 5 0 0 1 5 5c0 5-5 11-5 11S7 12 7 7a5 5 0 0 1 5-5z" />
@@ -29,7 +29,7 @@ function IconActivity({ active }) {
 }
 
 function IconCommunity({ active }) {
-  const c = active ? "#1D9E75" : "var(--icon)";
+  const c = active ? "var(--accent)" : "var(--icon)";
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -41,13 +41,24 @@ function IconCommunity({ active }) {
 }
 
 function IconProfile({ active }) {
-  const c = active ? "#1D9E75" : "var(--icon)";
+  const c = active ? "var(--accent)" : "var(--icon)";
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
   );
+}
+
+// ─── Live date hook ───────────────────────────────────────────────────────────
+
+function useLiveDate() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
 }
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────
@@ -59,11 +70,11 @@ function Gauge({ used, goal }) {
   return (
     <div className="gauge-card">
       <svg className="gauge-ring" viewBox="0 0 88 88">
-        <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="7" />
-        <circle cx="44" cy="44" r="36" fill="none" stroke="#1D9E75" strokeWidth="7" strokeLinecap="round"
+        <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="7" />
+        <circle cx="44" cy="44" r="36" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={offset} transform="rotate(-90 44 44)" />
-        <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#085041" fontFamily="DM Mono, monospace">today</text>
-        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill="#085041" fontFamily="DM Mono, monospace">{pct}%</text>
+        <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#042C53" fontFamily="DM Mono, monospace">today</text>
+        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill="#042C53" fontFamily="DM Mono, monospace">{pct}%</text>
       </svg>
       <div className="gauge-info">
         <div className="gauge-litres">{used} L</div>
@@ -79,15 +90,16 @@ function Gauge({ used, goal }) {
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
 function HomeTab({ user }) {
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const now = useLiveDate();
+  const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const firstName = user?.displayName?.split(" ")[0] || "there";
-  const hour = new Date().getHours();
+  const hour = now.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   const recentActivities = [
-    { name: "Shower", meta: "45 L · 8:12am", color: "#1D9E75" },
-    { name: "Dishwasher", meta: "12 L · 7:50am", color: "#378ADD" },
-    { name: "Garden watering", meta: "36 L · Yesterday", color: "#BA7517" },
+    { name: "Shower", meta: "45 L · 8:12am", color: "#378ADD" },
+    { name: "Dishwasher", meta: "12 L · 7:50am", color: "#185FA5" },
+    { name: "Garden watering", meta: "36 L · Yesterday", color: "#85B7EB" },
   ];
   const stats = [
     { value: "642 L", label: "Total used" },
@@ -140,13 +152,13 @@ function HomeTab({ user }) {
 
 const ACTIVITIES_DATA = {
   Today: [
-    { name: "Shower", detail: "8 min · 8:12am", litres: "45 L", color: "#1D9E75" },
-    { name: "Dishwasher", detail: "Eco cycle · 7:50am", litres: "12 L", color: "#378ADD" },
+    { name: "Shower", detail: "8 min · 8:12am", litres: "45 L", color: "#378ADD" },
+    { name: "Dishwasher", detail: "Eco cycle · 7:50am", litres: "12 L", color: "#185FA5" },
   ],
   Yesterday: [
-    { name: "Garden watering", detail: "20 min · 6:00pm", litres: "36 L", color: "#BA7517" },
-    { name: "Shower", detail: "7 min · 7:30am", litres: "40 L", color: "#1D9E75" },
-    { name: "Washing machine", detail: "Full load · 9:00am", litres: "55 L", color: "#D4537E" },
+    { name: "Garden watering", detail: "20 min · 6:00pm", litres: "36 L", color: "#85B7EB" },
+    { name: "Shower", detail: "7 min · 7:30am", litres: "40 L", color: "#378ADD" },
+    { name: "Washing machine", detail: "Full load · 9:00am", litres: "55 L", color: "#0C447C" },
   ],
 };
 
@@ -215,16 +227,12 @@ function ProfileTab({ user }) {
           <div className="profile-sub">{user?.email}</div>
         </div>
       </div>
-
       <div className="section">
         <div className="section-label">Badges</div>
         <div className="badge-row">
-          {BADGES.map((b) => (
-            <div className="badge" key={b}>{b}</div>
-          ))}
+          {BADGES.map((b) => (<div className="badge" key={b}>{b}</div>))}
         </div>
       </div>
-
       <div className="section">
         <div className="section-label">Settings</div>
         <div className="card-block">
@@ -236,7 +244,6 @@ function ProfileTab({ user }) {
           ))}
         </div>
       </div>
-
       <div className="section">
         <button className="signout-btn" onClick={handleSignOut}>Sign out</button>
       </div>
@@ -256,13 +263,12 @@ const TABS = [
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [user, setUser] = useState(undefined); // undefined = loading
+  const [user, setUser] = useState(undefined);
   const [activeTab, setActiveTab] = useState("home");
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Save/update user profile in Firestore on every login
         await setDoc(doc(db, "users", firebaseUser.uid), {
           uid: firebaseUser.uid,
           displayName: firebaseUser.displayName,
@@ -278,16 +284,18 @@ export default function App() {
     return unsub;
   }, []);
 
-  // Loading state
+  // Loading
   if (user === undefined) {
     return (
-      <div className="app-shell" style={{ alignItems: "center", justifyContent: "center" }}>
-        <div className="loading-dot" />
+      <div className="app-frame">
+        <div className="app-shell" style={{ alignItems: "center", justifyContent: "center" }}>
+          <div className="loading-dot" />
+        </div>
       </div>
     );
   }
 
-  // Not signed in
+  // Not signed in — LoginScreen uses same app-frame + app-shell
   if (user === null) {
     return <LoginScreen />;
   }
@@ -303,31 +311,17 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
-      <div className="status-bar">
-        <span>9:41</span>
-        <span className="status-icons">
-          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
-            <rect x="0" y="3" width="3" height="9" rx="1" opacity="0.3" />
-            <rect x="4.5" y="2" width="3" height="10" rx="1" opacity="0.6" />
-            <rect x="9" y="0.5" width="3" height="11.5" rx="1" />
-            <rect x="13.5" y="0" width="2.5" height="12" rx="1" />
-          </svg>
-          <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
-            <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" strokeOpacity="0.35" />
-            <rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor" />
-            <path d="M23 4.5V7.5C23.8 7.2 24.5 6.4 24.5 6C24.5 5.6 23.8 4.8 23 4.5Z" fill="currentColor" opacity="0.4" />
-          </svg>
-        </span>
-      </div>
-      <div className="screen">{renderTab()}</div>
-      <div className="tab-bar">
-        {TABS.map(({ id, label, Icon }) => (
-          <button key={id} className={`tab ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>
-            <div className="tab-icon"><Icon active={activeTab === id} /></div>
-            <span className="tab-label" style={{ color: activeTab === id ? "#1D9E75" : undefined }}>{label}</span>
-          </button>
-        ))}
+    <div className="app-frame">
+      <div className="app-shell">
+        <div className="screen">{renderTab()}</div>
+        <div className="tab-bar">
+          {TABS.map(({ id, label, Icon }) => (
+            <button key={id} className={`tab ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>
+              <div className="tab-icon"><Icon active={activeTab === id} /></div>
+              <span className="tab-label">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
