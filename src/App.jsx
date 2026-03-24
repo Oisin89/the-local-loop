@@ -186,11 +186,10 @@ function Gauge({ used, goal, streak = 0 }) {
           of {goal} L daily goal
         </div>
         {/* Status message + streak badge */}
-        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 7, minWidth: 0 }}>
           <span style={{
             fontSize: 12, fontWeight: 500,
             color: statusColor,
-            flex: 1, minWidth: 0,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             transition: "color 0.3s"
           }}>
@@ -198,19 +197,17 @@ function Gauge({ used, goal, streak = 0 }) {
           </span>
           {streak > 0 && (
             <div style={{
-              display: "flex", alignItems: "center", gap: 3,
+              display: "inline-flex", alignItems: "center", gap: 4,
               background: "rgba(201,163,34,0.15)",
               border: "0.5px solid rgba(201,163,34,0.3)",
-              borderRadius: 99, padding: "3px 8px", flexShrink: 0,
+              borderRadius: 99, padding: "3px 9px",
+              alignSelf: "flex-start",
             }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="#C9A30A" stroke="none">
                 <path d="M12 2c0 0-1 4-4 6 0 0 1-5-3-6 0 0-2 6 1 10-1 0-2-1-2-1 0 0 0 7 8 9 8-2 8-9 8-9s-1 1-2 1c3-4 1-10 1-10s-3 1-3 6c-3-2-4-6-4-6z"/>
               </svg>
-              <span style={{
-                fontSize: 11, fontWeight: 700,
-                color: "#C9A30A", fontFamily: "var(--mono)",
-              }}>
-                {streak}d
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#C9A30A", fontFamily: "var(--mono)" }}>
+                {streak} day streak
               </span>
             </div>
           )}
@@ -248,7 +245,7 @@ function ConservationTips() {
         setIndex(i => (i + 1) % TIPS.length);
         setVisible(true);
       }, 300);
-    }, 7000);
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
