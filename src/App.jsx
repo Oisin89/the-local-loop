@@ -73,8 +73,8 @@ function Gauge({ used, goal }) {
         <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="7" />
         <circle cx="44" cy="44" r="36" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={offset} transform="rotate(-90 44 44)" />
-        <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#042C53" fontFamily="DM Mono, monospace">today</text>
-        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill="#042C53" fontFamily="DM Mono, monospace">{pct}%</text>
+        <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#ffffff" fontFamily="DM Mono, monospace">today</text>
+        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill="#ffffff" fontFamily="DM Mono, monospace">{pct}%</text>
       </svg>
       <div className="gauge-info">
         <div className="gauge-litres">{used} L</div>
@@ -98,8 +98,8 @@ function HomeTab({ user }) {
 
   const recentActivities = [
     { name: "Shower", meta: "45 L · 8:12am", color: "#378ADD" },
-    { name: "Dishwasher", meta: "12 L · 7:50am", color: "#185FA5" },
-    { name: "Garden watering", meta: "36 L · Yesterday", color: "#85B7EB" },
+    { name: "Dishwasher", meta: "12 L · 7:50am", color: "#9B59B6" },
+    { name: "Garden watering", meta: "36 L · Yesterday", color: "#27AE60" },
   ];
   const stats = [
     { value: "642 L", label: "Total used" },
@@ -153,12 +153,12 @@ function HomeTab({ user }) {
 const ACTIVITIES_DATA = {
   Today: [
     { name: "Shower", detail: "8 min · 8:12am", litres: "45 L", color: "#378ADD" },
-    { name: "Dishwasher", detail: "Eco cycle · 7:50am", litres: "12 L", color: "#185FA5" },
+    { name: "Dishwasher", detail: "Eco cycle · 7:50am", litres: "12 L", color: "#9B59B6" },
   ],
   Yesterday: [
-    { name: "Garden watering", detail: "20 min · 6:00pm", litres: "36 L", color: "#85B7EB" },
+    { name: "Garden watering", detail: "20 min · 6:00pm", litres: "36 L", color: "#27AE60" },
     { name: "Shower", detail: "7 min · 7:30am", litres: "40 L", color: "#378ADD" },
-    { name: "Washing machine", detail: "Full load · 9:00am", litres: "55 L", color: "#0C447C" },
+    { name: "Washing machine", detail: "Full load · 9:00am", litres: "55 L", color: "#E67E22" },
   ],
 };
 
