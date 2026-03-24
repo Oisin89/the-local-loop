@@ -104,7 +104,7 @@ const ACTIVITY_COLORS = {
 function Gauge({ used, goal }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
-  const circumference = 2 * Math.PI * 54;
+  const circumference = 2 * Math.PI * 52;
   const ringPct = Math.min(rawPct, 100);
   const offset = circumference - (ringPct / 100) * circumference;
   const ringColor = over ? "#E24B4A" : "#378ADD";
@@ -112,16 +112,16 @@ function Gauge({ used, goal }) {
 
   return (
     <div className="gauge-card" style={over ? { borderColor: "rgba(226,75,74,0.4)" } : {}}>
-      {/* Ring */}
-      <div style={{ flexShrink: 0 }}>
-        <svg width="110" height="110" viewBox="0 0 110 110">
-          <circle cx="55" cy="55" r="54" fill="none" stroke={trackColor} strokeWidth="8" />
-          <circle cx="55" cy="55" r="54" fill="none" stroke={ringColor} strokeWidth="8"
+      {/* Ring — viewBox 120x120, r=52, stroke=8 → outer edge = 60+52+4=116, fits in 120 */}
+      <div style={{ flexShrink: 0, width: 110, height: 110 }}>
+        <svg width="110" height="110" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke={trackColor} strokeWidth="8" />
+          <circle cx="60" cy="60" r="52" fill="none" stroke={ringColor} strokeWidth="8"
             strokeLinecap="round" strokeDasharray={circumference}
-            strokeDashoffset={offset} transform="rotate(-90 55 55)" />
-          <text x="55" y="50" textAnchor="middle" fontSize="11" fontWeight="500"
+            strokeDashoffset={offset} transform="rotate(-90 60 60)" />
+          <text x="60" y="55" textAnchor="middle" fontSize="11" fontWeight="500"
             fill="rgba(255,255,255,0.7)" fontFamily="DM Mono, monospace">today</text>
-          <text x="55" y="68" textAnchor="middle" fontSize="15" fontWeight="700"
+          <text x="60" y="73" textAnchor="middle" fontSize="15" fontWeight="700"
             fill={over ? "#E24B4A" : "#ffffff"} fontFamily="DM Mono, monospace">{rawPct}%</text>
         </svg>
       </div>

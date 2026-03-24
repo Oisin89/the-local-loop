@@ -36,6 +36,9 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Prevent iOS Safari from zooming on input focus */
+input, select, textarea { font-size: 16px; }
+
 body {
   font-family: var(--font);
   background: var(--accent-bg);
@@ -44,6 +47,8 @@ body {
   align-items: center;
   min-height: 100dvh;
   padding: 16px;
+  /* Prevent iOS scroll bounce from affecting layout */
+  overscroll-behavior: none;
 }
 
 /* ─── Shared frame + shell (used by all screens) ─────────────────────────── */
@@ -547,7 +552,9 @@ body {
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .inline-form-header {
@@ -588,8 +595,9 @@ body {
 
 .type-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  width: 100%;
 }
 
 .type-btn {
@@ -607,6 +615,10 @@ body {
   cursor: pointer;
   transition: all 0.15s;
   text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .type-btn.active {
@@ -629,9 +641,10 @@ body {
 }
 
 .litres-input {
-  width: 100px;
+  width: 90px;
+  min-width: 0;
   padding: 12px 14px;
-  background: var(--bg2);
+  background: var(--bg);
   border: 0.5px solid var(--border);
   border-radius: 12px;
   font-size: 18px;
@@ -639,6 +652,7 @@ body {
   font-weight: 500;
   color: var(--text);
   outline: none;
+  box-sizing: border-box;
 }
 .litres-input:focus { border-color: var(--accent); }
 
