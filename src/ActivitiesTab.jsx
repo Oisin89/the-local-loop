@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import {
-  collection, deleteDoc, doc,
-  onSnapshot, query, orderBy
+  collection, addDoc, deleteDoc, doc,
+  onSnapshot, query, orderBy, serverTimestamp
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -41,17 +40,16 @@ function isYesterday(ts) {
   return isSameDay(ts, yesterday);
 }
 
-// ─── Log Form Modal ───────────────────────────────────────────────────────────
+// ─── Inline Log Form ──────────────────────────────────────────────────────────
 
-export function LogForm({ onClose, onSave }) {
-  const [type, setType] = useState(ACTIVITY_TYPES[0].name);
+function InlineLogForm({ onCancel, onSave }) {
+  const [type, setType]     = useState(ACTIVITY_TYPES[0].name);
   const [litres, setLitres] = useState(ACTIVITY_TYPES[0].defaultLitres);
   const [saving, setSaving] = useState(false);
 
   const handleTypeChange = (name) => {
     setType(name);
-    const def = ACTIVITY_TYPES.find(a => a.name === name)?.defaultLitres || 0;
-    setLitres(def);
+    setLitres(ACTIVITY_TYPES.find(a => a.name === name)?.defaultLitres || 0);
   };
 
   const handleSave = async () => {
@@ -59,63 +57,60 @@ export function LogForm({ onClose, onSave }) {
     setSaving(true);
     await onSave({ type, litres: Number(litres) });
     setSaving(false);
-    onClose();
   };
 
-  return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <span className="modal-title">Log activity</span>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Activity type</label>
-          <div className="type-grid">
-            {ACTIVITY_TYPES.map(a => (
-              <button
-                key={a.name}
-                className={`type-btn ${type === a.name ? "active" : ""}`}
-                style={{ "--dot": a.color }}
-                onClick={() => handleTypeChange(a.name)}
-              >
-                <span className="type-dot" style={{ background: a.color }} />
-                {a.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Litres used</label>
-          <div className="litres-row">
-            <input
-              className="litres-input"
-              type="number"
-              min="1"
-              max="2000"
-              value={litres}
-              onChange={e => setLitres(e.target.value)}
-            />
-            <span className="litres-unit">L</span>
-          </div>
-        </div>
-
-        <button className="add-btn" onClick={handleSave} disabled={saving || !litres || litres <= 0}>
-          {saving ? "Saving…" : "Save activity"}
-        </button>
+  return (
+    <div className="inline-form">
+      <div className="inline-form-header">
+        <span className="modal-title">Log activity</span>
+        <button className="modal-close" onClick={onCancel}>✕</button>
       </div>
-    </div>,
-    document.body
+
+      <div className="form-group">
+        <label className="form-label">Activity type</label>
+        <div className="type-grid">
+          {ACTIVITY_TYPES.map(a => (
+            <button
+              key={a.name}
+              className={`type-btn ${type === a.name ? "active" : ""}`}
+              onClick={() => handleTypeChange(a.name)}
+            >
+              <span className="type-dot" style={{ background: a.color }} />
+              {a.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Litres used</label>
+        <div className="litres-row">
+          <input
+            className="litres-input"
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="2000"
+            value={litres}
+            onChange={e => setLitres(e.target.value)}
+          />
+          <span className="litres-unit">L</span>
+        </div>
+      </div>
+
+      <button className="add-btn" onClick={handleSave} disabled={saving || !litres || litres <= 0}>
+        {saving ? "Saving…" : "Save activity"}
+      </button>
+    </div>
   );
 }
 
 // ─── Activities Tab ───────────────────────────────────────────────────────────
 
-export default function ActivitiesTab({ currentUser, onLogClick }) {
+export default function ActivitiesTab({ currentUser }) {
   const [activities, setActivities] = useState([]);
-  const [deleting, setDeleting] = useState(null);
+  const [showForm,   setShowForm]   = useState(false);
+  const [deleting,   setDeleting]   = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -129,6 +124,13 @@ export default function ActivitiesTab({ currentUser, onLogClick }) {
     return unsub;
   }, [currentUser]);
 
+  const handleSave = async ({ type, litres }) => {
+    await addDoc(collection(db, "users", currentUser.uid, "activities"), {
+      type, litres, createdAt: serverTimestamp(),
+    });
+    setShowForm(false);
+  };
+
   const handleDelete = async (id) => {
     setDeleting(id);
     await deleteDoc(doc(db, "users", currentUser.uid, "activities", id));
@@ -136,14 +138,14 @@ export default function ActivitiesTab({ currentUser, onLogClick }) {
   };
 
   const now = new Date();
-  const todayItems = activities.filter(a => isSameDay(a.createdAt, now));
+  const todayItems     = activities.filter(a => isSameDay(a.createdAt, now));
   const yesterdayItems = activities.filter(a => isYesterday(a.createdAt));
-  const earlierItems = activities.filter(a => !isSameDay(a.createdAt, now) && !isYesterday(a.createdAt));
+  const earlierItems   = activities.filter(a => !isSameDay(a.createdAt, now) && !isYesterday(a.createdAt));
 
   const renderList = (items) => items.map(a => (
     <div className="activity-item" key={a.id}>
       <div className="activity-dot" style={{ background: getActivityColor(a.type) }} />
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div className="activity-name">{a.type}</div>
         <div className="activity-detail">{formatTime(a.createdAt)}</div>
       </div>
@@ -166,16 +168,20 @@ export default function ActivitiesTab({ currentUser, onLogClick }) {
       </div>
 
       <div className="section">
-        <button className="add-btn" onClick={onLogClick}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Log activity
-        </button>
+        {showForm ? (
+          <InlineLogForm onCancel={() => setShowForm(false)} onSave={handleSave} />
+        ) : (
+          <button className="add-btn" onClick={() => setShowForm(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Log activity
+          </button>
+        )}
       </div>
 
-      {activities.length === 0 && (
+      {!showForm && activities.length === 0 && (
         <div className="empty-state">
           <p>No activities logged yet.</p>
           <p>Tap "Log activity" to get started.</p>

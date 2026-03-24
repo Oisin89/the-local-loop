@@ -3,12 +3,12 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   doc, setDoc, getDoc, updateDoc,
   collection, query, orderBy, onSnapshot,
-  serverTimestamp, addDoc
+  serverTimestamp
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import LoginScreen from "./LoginScreen";
 import CommunityTab from "./CommunityTab";
-import ActivitiesTab, { LogForm } from "./ActivitiesTab";
+import ActivitiesTab from "./ActivitiesTab";
 import "./App.css";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -323,7 +323,6 @@ export default function App() {
   const [activeTab,  setActiveTab]  = useState("home");
   const [dailyGoal,  setDailyGoal]  = useState(150);
   const [activities, setActivities] = useState([]);
-  const [showForm,   setShowForm]   = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -373,18 +372,10 @@ export default function App() {
 
   if (user === null) return <LoginScreen />;
 
-  const handleSaveActivity = async ({ type, litres }) => {
-    await addDoc(collection(db, "users", user.uid, "activities"), {
-      type,
-      litres,
-      createdAt: serverTimestamp(),
-    });
-  };
-
   const renderTab = () => {
     switch (activeTab) {
       case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} />;
-      case "activities": return <ActivitiesTab currentUser={user} onLogClick={() => setShowForm(true)} />;
+      case "activities": return <ActivitiesTab currentUser={user} />;
       case "community":  return <CommunityTab currentUser={user} />;
       case "profile":    return <ProfileTab user={user} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} />;
       default:           return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} />;
@@ -404,12 +395,6 @@ export default function App() {
           ))}
         </div>
       </div>
-      {showForm && (
-        <LogForm
-          onClose={() => setShowForm(false)}
-          onSave={async (data) => { await handleSaveActivity(data); setShowForm(false); }}
-        />
-      )}
     </div>
   );
 }

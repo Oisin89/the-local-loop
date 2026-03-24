@@ -536,42 +536,21 @@ body {
 .pref-label { font-size: 14px; color: var(--text); }
 .pref-val { font-size: 13px; color: var(--text2); }
 
-/* ─── Log form modal ─────────────────────────────────────────────────────── */
+/* ─── Inline log form ────────────────────────────────────────────────────── */
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 9999;
-  -webkit-overflow-scrolling: touch;
-}
-
-.modal-overlay .modal-card {
-  width: 100%;
-  max-width: 390px;
-}
-
-@media (max-width: 768px) {
-  .modal-overlay .modal-card { max-width: 100%; }
-}
-
-.modal-card {
-  background: var(--bg);
-  border-radius: 24px 24px 0 0;
-  padding: 20px 20px 36px;
-  width: 100%;
+.inline-form {
+  background: var(--bg2);
+  border-radius: 16px;
+  border: 0.5px solid var(--border);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.modal-header {
+.inline-form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
