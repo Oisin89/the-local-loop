@@ -101,11 +101,34 @@ const ACTIVITY_COLORS = {
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
-function Gauge({ used, goal }) {
+function Gauge({ used, goal, streak = 0 }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
   const fillPct = Math.min(rawPct, 100);
   const ringColor = over ? "#E24B4A" : "#378ADD";
+
+  // Dynamic status message
+  const remaining = goal - used;
+  let statusMsg, statusColor;
+  if (used === 0) {
+    statusMsg = "Nothing logged yet today";
+    statusColor = "var(--text2)";
+  } else if (rawPct < 50) {
+    statusMsg = `${remaining} L left — great start`;
+    statusColor = "#27AE60";
+  } else if (rawPct < 80) {
+    statusMsg = `${remaining} L left today`;
+    statusColor = "var(--accent)";
+  } else if (rawPct < 100) {
+    statusMsg = `Only ${remaining} L left — slow down!`;
+    statusColor = "#E67E22";
+  } else if (rawPct === 100) {
+    statusMsg = "Daily goal hit — well done!";
+    statusColor = "#27AE60";
+  } else {
+    statusMsg = `${used - goal} L over today's goal`;
+    statusColor = "#E24B4A";
+  }
 
   // Water drop geometry (viewBox 0 0 90 122)
   const dropPath = "M 45 5 C 65 30, 83 60, 83 82 A 38 38 0 0 1 7 82 C 7 60, 25 30, 45 5 Z";
@@ -162,35 +185,36 @@ function Gauge({ used, goal }) {
         <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>
           of {goal} L daily goal
         </div>
-        {/* Progress bar with live % label */}
-        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 7 }}>
-          <div style={{
-            flex: 1,
-            background: over ? "rgba(226,75,74,0.15)" : "rgba(55,138,221,0.15)",
-            borderRadius: 99, height: 5, overflow: "hidden"
-          }}>
-            <div style={{
-              height: "100%",
-              width: `${fillPct}%`,
-              background: ringColor,
-              borderRadius: 99,
-              transition: "width 0.6s ease, background 0.3s"
-            }} />
-          </div>
+        {/* Status message + streak badge */}
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{
-            fontSize: 11, fontWeight: 700,
-            color: ringColor,
-            fontFamily: "var(--mono)",
-            flexShrink: 0, minWidth: 34, textAlign: "right"
+            fontSize: 12, fontWeight: 500,
+            color: statusColor,
+            flex: 1, minWidth: 0,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            transition: "color 0.3s"
           }}>
-            {rawPct}%
+            {statusMsg}
           </span>
+          {streak > 0 && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 3,
+              background: "rgba(201,163,34,0.15)",
+              border: "0.5px solid rgba(201,163,34,0.3)",
+              borderRadius: 99, padding: "3px 8px", flexShrink: 0,
+            }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="#C9A30A" stroke="none">
+                <path d="M12 2c0 0-1 4-4 6 0 0 1-5-3-6 0 0-2 6 1 10-1 0-2-1-2-1 0 0 0 7 8 9 8-2 8-9 8-9s-1 1-2 1c3-4 1-10 1-10s-3 1-3 6c-3-2-4-6-4-6z"/>
+              </svg>
+              <span style={{
+                fontSize: 11, fontWeight: 700,
+                color: "#C9A30A", fontFamily: "var(--mono)",
+              }}>
+                {streak}d
+              </span>
+            </div>
+          )}
         </div>
-        {over && (
-          <div style={{ fontSize: 11, color: "#E24B4A", marginTop: 6, fontWeight: 600 }}>
-            {used - goal} L over daily goal
-          </div>
-        )}
       </div>
     </div>
   );
@@ -357,7 +381,7 @@ function HomeTab({ user, activities, dailyGoal }) {
         </svg>
       </div>
 
-      <Gauge used={todayTotal} goal={dailyGoal} />
+      <Gauge used={todayTotal} goal={dailyGoal} streak={streak} />
 
       {/* ── This Week stats ── */}
       <div className="section">
