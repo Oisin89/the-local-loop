@@ -194,7 +194,7 @@ function ConservationTips() {
     <div className="section">
       <div className="tips-card">
         <div className="tips-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A30A" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <span className="tips-label">Conservation tip</span>
@@ -216,6 +216,79 @@ function ConservationTips() {
   );
 }
 
+// ─── Week helpers ─────────────────────────────────────────────────────────────
+
+function getWeekRange(refDate, offsetWeeks = 0) {
+  const d = new Date(refDate);
+  const day = d.getDay();
+  const diff = day === 0 ? 6 : day - 1; // Monday = start
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - diff + offsetWeeks * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { start: monday, end: sunday };
+}
+
+function toDate(ts) {
+  if (!ts) return null;
+  return ts.toDate ? ts.toDate() : new Date(ts);
+}
+
+function useWeekStats(activities, dailyGoal, now) {
+  const thisWeek = getWeekRange(now, 0);
+  const lastWeek = getWeekRange(now, -1);
+
+  const inRange = (a, range) => {
+    const d = toDate(a.createdAt);
+    return d && d >= range.start && d <= range.end;
+  };
+
+  const thisWeekActs = activities.filter(a => inRange(a, thisWeek));
+  const lastWeekActs = activities.filter(a => inRange(a, lastWeek));
+
+  const thisTotal = thisWeekActs.reduce((s, a) => s + (a.litres || 0), 0);
+  const lastTotal = lastWeekActs.reduce((s, a) => s + (a.litres || 0), 0);
+
+  const vsLastWeek = lastTotal > 0
+    ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100)
+    : null;
+
+  // Goals met this week (days where total <= dailyGoal)
+  const dayTotals = {};
+  thisWeekActs.forEach(a => {
+    const d = toDate(a.createdAt);
+    if (!d) return;
+    const key = d.toDateString();
+    dayTotals[key] = (dayTotals[key] || 0) + (a.litres || 0);
+  });
+  const goalsMet = Object.values(dayTotals).filter(t => t <= dailyGoal).length;
+
+  // Streak: consecutive days (ending today or yesterday) where goal was met
+  let streak = 0;
+  for (let i = 0; i < 60; i++) {
+    const checkDate = new Date(now);
+    checkDate.setDate(now.getDate() - i);
+    const key = checkDate.toDateString();
+    const dayActivities = activities.filter(a => {
+      const d = toDate(a.createdAt);
+      return d && d.toDateString() === key;
+    });
+    const dayTotal = dayActivities.reduce((s, a) => s + (a.litres || 0), 0);
+    if (dayActivities.length > 0 && dayTotal <= dailyGoal) {
+      streak++;
+    } else if (i === 0 && dayActivities.length === 0) {
+      // Today has no activities yet — skip, don't break streak
+      continue;
+    } else {
+      break;
+    }
+  }
+
+  return { thisTotal, vsLastWeek, goalsMet, streak };
+}
+
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
 function HomeTab({ user, activities, dailyGoal }) {
@@ -228,6 +301,8 @@ function HomeTab({ user, activities, dailyGoal }) {
   const todayTotal = activities
     .filter(a => isSameDay(a.createdAt, now))
     .reduce((sum, a) => sum + (a.litres || 0), 0);
+
+  const { thisTotal, vsLastWeek, goalsMet, streak } = useWeekStats(activities, dailyGoal, now);
 
   const recent = activities.slice(0, 5);
 
@@ -245,6 +320,35 @@ function HomeTab({ user, activities, dailyGoal }) {
       </div>
 
       <Gauge used={todayTotal} goal={dailyGoal} />
+
+      {/* ── This Week stats ── */}
+      <div className="section">
+        <div className="section-label">This week</div>
+        <div className="stat-row" style={{ marginBottom: 10 }}>
+          <div className="stat-card">
+            <div className="stat-value">{thisTotal} L</div>
+            <div className="stat-lbl">Total used</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{
+              color: vsLastWeek === null ? "var(--text2)" : vsLastWeek <= 0 ? "#27AE60" : "#E24B4A"
+            }}>
+              {vsLastWeek === null ? "—" : `${vsLastWeek > 0 ? "+" : ""}${vsLastWeek}%`}
+            </div>
+            <div className="stat-lbl">vs last week</div>
+          </div>
+        </div>
+        <div className="stat-row">
+          <div className="stat-card">
+            <div className="stat-value">{goalsMet}</div>
+            <div className="stat-lbl">Goals met</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{streak}-day</div>
+            <div className="stat-lbl">streak</div>
+          </div>
+        </div>
+      </div>
 
       <ConservationTips />
 

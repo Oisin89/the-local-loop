@@ -249,14 +249,21 @@ body {
 /* ─── Conservation tips ──────────────────────────────────────────────────── */
 
 .tips-card {
-  background: var(--accent-bg);
-  border: 0.5px solid var(--border);
+  background: #FFF9E6;
+  border: 0.5px solid rgba(210,180,60,0.25);
   border-radius: 16px;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-height: 90px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tips-card {
+    background: #2a2518;
+    border-color: rgba(210,180,60,0.2);
+  }
 }
 
 .tips-header {
@@ -268,9 +275,13 @@ body {
 .tips-label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--accent);
+  color: #B8960C;
   text-transform: uppercase;
   letter-spacing: 0.6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tips-label { color: #D4B44A; }
 }
 
 .tips-text {
@@ -291,7 +302,7 @@ body {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: #C9A30A;
   transition: opacity 0.3s ease, transform 0.3s ease;
   flex-shrink: 0;
 }
