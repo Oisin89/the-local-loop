@@ -348,6 +348,276 @@ function useWeekStats(activities, dailyGoal, now) {
   return { thisTotal, vsLastWeek, goalsMet, streak };
 }
 
+// ─── Daily Challenge ─────────────────────────────────────────────────────────
+
+const CHALLENGES = [
+  { text: "Turn the tap off while brushing your teeth", saving: 6 },
+  { text: "Have a shower instead of a bath today", saving: 48 },
+  { text: "Only boil as much water as you need", saving: 2 },
+  { text: "Run the dishwasher on a full load only", saving: 12 },
+  { text: "Water plants before 8am or after 7pm", saving: 15 },
+  { text: "Fix or report any dripping tap you spot today", saving: 30 },
+  { text: "Wash vegetables in a bowl, not under running water", saving: 8 },
+  { text: "Keep your shower to under 4 minutes", saving: 24 },
+  { text: "Fill the washing machine before running it", saving: 30 },
+  { text: "Use a watering can instead of a hose", saving: 50 },
+  { text: "Defrost food in the fridge, not under the tap", saving: 10 },
+  { text: "Collect any unused drinking water for houseplants", saving: 5 },
+  { text: "Rinse dishes in a basin, not under running water", saving: 15 },
+  { text: "Check your toilet for silent leaks today", saving: 20 },
+];
+
+function DailyChallenge({ user }) {
+  const [done, setDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const challenge = CHALLENGES[dayOfYear % CHALLENGES.length];
+  const todayStr = now.toDateString();
+
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "users", user.uid)).then(snap => {
+      const data = snap.data();
+      if (data?.challengeDate === todayStr && data?.challengeDone) setDone(true);
+    });
+  }, [user]);
+
+  const markDone = async () => {
+    if (done || saving) return;
+    setSaving(true);
+    await updateDoc(doc(db, "users", user.uid), {
+      challengeDate: todayStr,
+      challengeDone: true,
+    });
+    setDone(true);
+    setSaving(false);
+  };
+
+  return (
+    <div className="section">
+      <div className="challenge-card">
+        <div className="challenge-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#27AE60" stroke="none">
+              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+            </svg>
+            <span className="challenge-label">Today's challenge</span>
+          </div>
+          <span className="challenge-saving">saves ~{challenge.saving} L</span>
+        </div>
+        <p className="challenge-text">{challenge.text}</p>
+        <button className={`challenge-btn${done ? " done" : ""}`} onClick={markDone} disabled={done}>
+          {done ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Done — nice work!
+            </>
+          ) : saving ? "Saving…" : "Mark as done"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Personal Best ────────────────────────────────────────────────────────────
+
+function PersonalBest({ activities, dailyGoal }) {
+  if (activities.length === 0) return null;
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+
+  const byDay = {};
+  activities.forEach(a => {
+    const d = toDate(a.createdAt);
+    if (!d || d < cutoff) return;
+    const key = d.toDateString();
+    byDay[key] = (byDay[key] || 0) + (a.litres || 0);
+  });
+
+  const entries = Object.entries(byDay);
+  if (entries.length < 2) return null;
+
+  const [bestKey, bestTotal] = entries.reduce((best, curr) =>
+    curr[1] < best[1] ? curr : best
+  );
+
+  const savedVsGoal = dailyGoal - bestTotal;
+  const bestDate = new Date(bestKey);
+  const isRecent = (new Date() - bestDate) < 7 * 86400000;
+  const dateLabel = isRecent
+    ? bestDate.toLocaleDateString("en-GB", { weekday: "long" })
+    : bestDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  const byType = {};
+  activities.forEach(a => {
+    byType[a.type] = (byType[a.type] || 0) + (a.litres || 0);
+  });
+  const topType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+
+  return (
+    <div className="section">
+      <div className="section-label">Personal best</div>
+      <div className="card-block">
+        <div className="pb-row" style={{ borderBottom: "0.5px solid var(--border)" }}>
+          <span className="pb-icon">🏅</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="pb-value">{bestTotal} L</div>
+            <div className="pb-lbl">Lowest day — {dateLabel}</div>
+          </div>
+          {savedVsGoal > 0 && (
+            <span className="pb-badge">{savedVsGoal} L under goal</span>
+          )}
+        </div>
+        {topType && (
+          <div className="pb-row">
+            <span className="pb-icon">💧</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="pb-value">{topType[0]}</div>
+              <div className="pb-lbl">Biggest water use overall</div>
+            </div>
+            <span style={{ fontSize: 13, color: "var(--text2)", fontFamily: "var(--mono)", flexShrink: 0 }}>
+              {topType[1]} L
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Weather Nudge ────────────────────────────────────────────────────────────
+
+function WeatherNudge() {
+  const [nudge, setNudge] = useState(null);
+  const [temp, setTemp] = useState(null);
+  const [icon, setIcon] = useState(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,precipitation,weather_code`
+          );
+          const data = await res.json();
+          const { temperature_2m: t, precipitation: p, weather_code: code } = data.current;
+          const roundT = Math.round(t);
+          setTemp(roundT);
+          let msg, ic;
+          if (p > 2 || (code >= 51 && code <= 82)) {
+            msg = "It's raining — put a water butt out and collect it for the garden.";
+            ic = "🌧";
+          } else if (roundT >= 26) {
+            msg = `It's ${roundT}° today — water your garden after 7pm to cut evaporation by up to 25%.`;
+            ic = "☀️";
+          } else if (roundT >= 18) {
+            msg = `Nice ${roundT}° today — check garden soil moisture before reaching for the hose.`;
+            ic = "🌤";
+          } else if (roundT < 8) {
+            msg = `Cold at ${roundT}° — plants need significantly less water in cold weather.`;
+            ic = "🧊";
+          } else {
+            msg = `Mild ${roundT}° today — a good time to check for dripping taps or leaky fittings.`;
+            ic = "🌡";
+          }
+          setNudge(msg);
+          setIcon(ic);
+        } catch { /* silently fail */ }
+      },
+      () => {} /* permission denied — hide component */
+    );
+  }, []);
+
+  if (!nudge) return null;
+
+  return (
+    <div className="section">
+      <div className="weather-card">
+        <div className="weather-header">
+          <span className="weather-icon-emoji">{icon}</span>
+          <span className="weather-label">Local weather tip</span>
+          {temp !== null && <span className="weather-temp">{temp}°C</span>}
+        </div>
+        <p className="weather-text">{nudge}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Weekly Bar Chart ─────────────────────────────────────────────────────────
+
+function WeeklyChart({ activities, dailyGoal, now }) {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - 6 + i);
+    return d;
+  });
+
+  const totals = days.map(d =>
+    activities
+      .filter(a => { const ad = toDate(a.createdAt); return ad && ad.toDateString() === d.toDateString(); })
+      .reduce((s, a) => s + (a.litres || 0), 0)
+  );
+
+  const maxVal = Math.max(...totals, dailyGoal, 1);
+  const chartH = 80;
+  const slotW = 40;
+  const barW = 26;
+  const barOffset = (slotW - barW) / 2;
+  const viewW = slotW * 7;
+
+  const goalY = chartH - (dailyGoal / maxVal) * chartH;
+
+  return (
+    <div className="section">
+      <div className="section-label">Last 7 days</div>
+      <div className="stat-card" style={{ padding: "16px 14px 12px" }}>
+        <svg width="100%" height={chartH + 28} viewBox={`0 0 ${viewW} ${chartH + 28}`} preserveAspectRatio="xMidYMid meet">
+          {/* Dashed goal line */}
+          <line x1={0} y1={goalY} x2={viewW} y2={goalY}
+            stroke="rgba(226,75,74,0.5)" strokeWidth="1" strokeDasharray="4 3" />
+
+          {days.map((d, i) => {
+            const total = totals[i];
+            const hasData = total > 0;
+            const barH = hasData ? Math.max((total / maxVal) * chartH, 4) : 2;
+            const x = i * slotW + barOffset;
+            const y = chartH - barH;
+            const isToday = d.toDateString() === now.toDateString();
+            const over = total > dailyGoal && hasData;
+            const fill = over ? "#E24B4A" : isToday ? "var(--accent)" : hasData ? "var(--accent-light)" : "var(--border)";
+            const label = d.toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2);
+
+            return (
+              <g key={i}>
+                <rect x={x} y={y} width={barW} height={barH} rx={5} fill={fill} opacity={hasData ? 1 : 0.5} />
+                <text x={x + barW / 2} y={chartH + 16} textAnchor="middle"
+                  fontSize="10" fontWeight={isToday ? 700 : 400}
+                  fill={isToday ? "var(--accent)" : "var(--text2)"}
+                  fontFamily="DM Sans, sans-serif">
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+          <svg width="18" height="8" viewBox="0 0 18 8">
+            <line x1="0" y1="4" x2="18" y2="4" stroke="rgba(226,75,74,0.5)" strokeWidth="1.5" strokeDasharray="4 3"/>
+          </svg>
+          <span style={{ fontSize: 11, color: "var(--text2)" }}>Daily goal</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
 function HomeTab({ user, activities, dailyGoal }) {
@@ -380,10 +650,12 @@ function HomeTab({ user, activities, dailyGoal }) {
 
       <Gauge used={todayTotal} goal={dailyGoal} streak={streak} />
 
+      <DailyChallenge user={user} />
+
       {/* ── This Week stats ── */}
       <div className="section">
         <div className="section-label">This week</div>
-        <div className="stat-row" style={{ marginBottom: 10 }}>
+        <div className="stat-row">
           <div className="stat-card">
             <div className="stat-value">{thisTotal} L</div>
             <div className="stat-lbl">Total used</div>
@@ -400,6 +672,10 @@ function HomeTab({ user, activities, dailyGoal }) {
       </div>
 
       <ConservationTips />
+
+      <PersonalBest activities={activities} dailyGoal={dailyGoal} />
+
+      <WeatherNudge />
 
       <div className="section">
         <div className="section-label">Recent activity</div>
@@ -425,6 +701,8 @@ function HomeTab({ user, activities, dailyGoal }) {
           </div>
         )}
       </div>
+
+      <WeeklyChart activities={activities} dailyGoal={dailyGoal} now={now} />
     </div>
   );
 }
