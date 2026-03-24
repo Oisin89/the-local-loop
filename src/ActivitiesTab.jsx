@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   collection, deleteDoc, doc,
   onSnapshot, query, orderBy
@@ -61,7 +62,7 @@ export function LogForm({ onClose, onSave }) {
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
@@ -105,7 +106,8 @@ export function LogForm({ onClose, onSave }) {
           {saving ? "Saving…" : "Save activity"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

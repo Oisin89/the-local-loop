@@ -68,18 +68,20 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 48px rgba(24,95,165,0.12);
+  position: relative;
+  isolation: isolate;
 }
 
 /* On real mobile, fill the screen */
 @media (max-width: 768px) {
   body { padding: 0; background: var(--bg); }
-  .app-frame { align-items: flex-start; min-height: 100dvh; }
+  .app-frame { align-items: flex-start; min-height: 100svh; }
   .app-shell {
     max-width: 100%;
     border-radius: 0;
     border: none;
-    height: 100dvh;
-    max-height: 100dvh;
+    height: 100svh;
+    max-height: 100svh;
     box-shadow: none;
   }
 }
@@ -569,12 +571,16 @@ body {
 
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0,0,0,0.5);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-overlay .modal-card {
