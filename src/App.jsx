@@ -104,7 +104,7 @@ const ACTIVITY_COLORS = {
 function Gauge({ used, goal }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
-  const circumference = 2 * Math.PI * 52;
+  const circumference = 2 * Math.PI * 54;
   const ringPct = Math.min(rawPct, 100);
   const offset = circumference - (ringPct / 100) * circumference;
   const ringColor = over ? "#E24B4A" : "#378ADD";
@@ -112,16 +112,16 @@ function Gauge({ used, goal }) {
 
   return (
     <div className="gauge-card" style={over ? { borderColor: "rgba(226,75,74,0.4)" } : {}}>
-      {/* Ring — viewBox 120x120, r=52, stroke=8 → outer edge = 60+52+4=116, fits in 120 */}
-      <div style={{ flexShrink: 0, width: 110, height: 110 }}>
-        <svg width="110" height="110" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="52" fill="none" stroke={trackColor} strokeWidth="8" />
-          <circle cx="60" cy="60" r="52" fill="none" stroke={ringColor} strokeWidth="8"
+      {/* Ring */}
+      <div style={{ flexShrink: 0 }}>
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="54" fill="none" stroke={trackColor} strokeWidth="8" />
+          <circle cx="55" cy="55" r="54" fill="none" stroke={ringColor} strokeWidth="8"
             strokeLinecap="round" strokeDasharray={circumference}
-            strokeDashoffset={offset} transform="rotate(-90 60 60)" />
-          <text x="60" y="55" textAnchor="middle" fontSize="11" fontWeight="500"
+            strokeDashoffset={offset} transform="rotate(-90 55 55)" />
+          <text x="55" y="50" textAnchor="middle" fontSize="11" fontWeight="500"
             fill="rgba(255,255,255,0.7)" fontFamily="DM Mono, monospace">today</text>
-          <text x="60" y="73" textAnchor="middle" fontSize="15" fontWeight="700"
+          <text x="55" y="68" textAnchor="middle" fontSize="15" fontWeight="700"
             fill={over ? "#E24B4A" : "#ffffff"} fontFamily="DM Mono, monospace">{rawPct}%</text>
         </svg>
       </div>
@@ -158,6 +158,64 @@ function Gauge({ used, goal }) {
   );
 }
 
+// ─── Conservation Tips ────────────────────────────────────────────────────────
+
+const TIPS = [
+  "Turn off the tap while brushing your teeth — you can save up to 6 litres per minute.",
+  "A 4-minute shower uses about 32 litres. Try cutting one minute to save 8 litres daily.",
+  "Fix a dripping tap — a slow drip can waste over 5,000 litres a year.",
+  "Run your dishwasher only when full — it uses the same water regardless of load size.",
+  "Water your garden in the early morning to reduce evaporation by up to 25%.",
+  "A full bath uses around 80 litres. Switching to a shower can halve that.",
+  "Collect rainwater for watering plants — a water butt can hold up to 200 litres.",
+  "Only boil as much water as you need — it saves energy and water.",
+  "Use a bowl when washing vegetables instead of running the tap.",
+  "Check for hidden leaks — a simple dye tablet in your toilet cistern reveals silent leaks.",
+  "Washing a full load of laundry uses the same water as a half load — wait until it's full.",
+  "A hosepipe uses up to 1,000 litres per hour. Use a watering can instead.",
+];
+
+function ConservationTips() {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex(i => (i + 1) % TIPS.length);
+        setVisible(true);
+      }, 300);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="section">
+      <div className="tips-card">
+        <div className="tips-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span className="tips-label">Conservation tip</span>
+        </div>
+        <p className="tips-text" style={{ opacity: visible ? 1 : 0, transition: "opacity 0.3s ease" }}>
+          {TIPS[index]}
+        </p>
+        <div className="tips-dots">
+          {TIPS.map((_, i) => (
+            <div
+              key={i}
+              className="tips-dot"
+              style={{ opacity: i === index ? 1 : 0.25, transform: i === index ? "scale(1.3)" : "scale(1)" }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
 function HomeTab({ user, activities, dailyGoal }) {
@@ -187,6 +245,8 @@ function HomeTab({ user, activities, dailyGoal }) {
       </div>
 
       <Gauge used={todayTotal} goal={dailyGoal} />
+
+      <ConservationTips />
 
       <div className="section">
         <div className="section-label">Recent activity</div>

@@ -36,9 +36,6 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Prevent iOS Safari from zooming on input focus */
-input, select, textarea { font-size: 16px; }
-
 body {
   font-family: var(--font);
   background: var(--accent-bg);
@@ -47,8 +44,6 @@ body {
   align-items: center;
   min-height: 100dvh;
   padding: 16px;
-  /* Prevent iOS scroll bounce from affecting layout */
-  overscroll-behavior: none;
 }
 
 /* ─── Shared frame + shell (used by all screens) ─────────────────────────── */
@@ -249,6 +244,55 @@ body {
   width: calc(100% - 40px);
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* ─── Conservation tips ──────────────────────────────────────────────────── */
+
+.tips-card {
+  background: var(--accent-bg);
+  border: 0.5px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 90px;
+}
+
+.tips-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tips-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.tips-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+  flex: 1;
+}
+
+.tips-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.tips-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 /* ─── Stats ──────────────────────────────────────────────────────────────── */
@@ -552,9 +596,7 @@ body {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .inline-form-header {
@@ -595,9 +637,8 @@ body {
 
 .type-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  width: 100%;
 }
 
 .type-btn {
@@ -615,10 +656,6 @@ body {
   cursor: pointer;
   transition: all 0.15s;
   text-align: left;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .type-btn.active {
@@ -641,10 +678,9 @@ body {
 }
 
 .litres-input {
-  width: 90px;
-  min-width: 0;
+  width: 100px;
   padding: 12px 14px;
-  background: var(--bg);
+  background: var(--bg2);
   border: 0.5px solid var(--border);
   border-radius: 12px;
   font-size: 18px;
@@ -652,7 +688,6 @@ body {
   font-weight: 500;
   color: var(--text);
   outline: none;
-  box-sizing: border-box;
 }
 .litres-input:focus { border-color: var(--accent); }
 
