@@ -462,6 +462,46 @@ body {
 }
 .add-friend-btn:hover { opacity: 0.85; }
 
+/* ─── Leaderboard ────────────────────────────────────────────────────────── */
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  transition: background 0.15s;
+}
+
+.leaderboard-rank {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--mono);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.leaderboard-name {
+  flex: 1;
+  font-size: 15px;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-total {
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--text2);
+  flex-shrink: 0;
+  letter-spacing: -0.3px;
+}
+
 /* ─── Community ──────────────────────────────────────────────────────────── */
 
 .notif-badge {

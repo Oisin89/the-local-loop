@@ -5,6 +5,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
 function Avatar({ initials, bg = "#E1F5EE", color = "#085041", size = 34 }) {
   return (
     <div style={{
@@ -23,6 +25,12 @@ function getInitials(name) {
   return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
+function shortName(displayName) {
+  if (!displayName) return "User";
+  const parts = displayName.split(" ");
+  return parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0];
+}
+
 const AVATAR_COLORS = [
   { bg: "#E1F5EE", color: "#085041" },
   { bg: "#E6F1FB", color: "#0C447C" },
@@ -36,6 +44,145 @@ function getAvatarColor(uid) {
   return AVATAR_COLORS[idx];
 }
 
+// ─── Leaderboard hook ─────────────────────────────────────────────────────────
+
+function useLeaderboard(currentUser, friends) {
+  const [rankings, setRankings] = useState([]);
+  const [loadingBoard, setLoadingBoard] = useState(false);
+  const friendKey = friends.map(f => f.uid).sort().join(",");
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const fetchTotal = async (uid) => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, "users", uid, "activities"),
+            where("createdAt", ">=", monthStart)
+          )
+        );
+        return snap.docs.reduce((s, d) => s + (d.data().litres || 0), 0);
+      } catch {
+        return null; // permission denied or no data
+      }
+    };
+
+    const run = async () => {
+      setLoadingBoard(true);
+      const participants = [
+        {
+          uid: currentUser.uid,
+          displayName: currentUser.displayName,
+          isMe: true,
+        },
+        ...friends.map(f => ({ uid: f.uid, displayName: f.displayName, isMe: false })),
+      ];
+
+      const withTotals = await Promise.all(
+        participants.map(async (p) => ({ ...p, total: await fetchTotal(p.uid) }))
+      );
+
+      const valid = withTotals
+        .filter(p => p.total !== null)
+        .sort((a, b) => a.total - b.total);
+
+      setRankings(valid);
+      setLoadingBoard(false);
+    };
+
+    run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid, friendKey]);
+
+  return { rankings, loadingBoard };
+}
+
+// ─── Leaderboard UI ───────────────────────────────────────────────────────────
+
+const RANK_COLORS = ["#C9A822", "#9098A8", "#A0683A"];
+
+function LeaderboardSection({ rankings, loadingBoard, hasFriends }) {
+  if (!hasFriends && !loadingBoard) {
+    return (
+      <div className="section">
+        <div className="section-label">Leaderboard · This Month</div>
+        <div className="empty-state" style={{ padding: "20px 0" }}>
+          <p>Add friends to see how you stack up this month.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section">
+      <div className="section-label">Leaderboard · This Month</div>
+
+      {loadingBoard ? (
+        <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text2)", fontSize: 13 }}>
+          Loading…
+        </div>
+      ) : (
+        <div className="card-block">
+          {rankings.map((p, i) => {
+            const colors = getAvatarColor(p.uid);
+            const rankColor = i < 3 ? RANK_COLORS[i] : "var(--text2)";
+            const isFirst = i === 0;
+            return (
+              <div
+                key={p.uid}
+                className="leaderboard-row"
+                style={{
+                  borderBottom: i < rankings.length - 1 ? "0.5px solid var(--border)" : "none",
+                  background: p.isMe ? "rgba(74,151,232,0.06)" : "transparent",
+                }}
+              >
+                {/* Rank */}
+                <span className="leaderboard-rank" style={{ color: rankColor }}>
+                  {isFirst ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill={rankColor} stroke="none">
+                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                    </svg>
+                  ) : i + 1}
+                </span>
+
+                {/* Avatar */}
+                <Avatar
+                  initials={getInitials(p.displayName)}
+                  bg={p.isMe ? "var(--accent-bg)" : colors.bg}
+                  color={p.isMe ? "var(--accent-dark)" : colors.color}
+                  size={36}
+                />
+
+                {/* Name */}
+                <span className="leaderboard-name" style={{
+                  color: p.isMe ? "var(--accent-dark)" : "var(--text)",
+                  fontWeight: p.isMe ? 600 : 500,
+                }}>
+                  {p.isMe ? "You" : shortName(p.displayName)}
+                </span>
+
+                {/* Usage */}
+                <span className="leaderboard-total" style={{
+                  color: p.isMe ? "var(--accent)" : "var(--text2)",
+                  fontWeight: p.isMe ? 600 : 400,
+                }}>
+                  {(p.total || 0).toLocaleString("en-GB")} L
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function CommunityTab({ currentUser }) {
   const [tab, setTab] = useState("friends");
   const [friends, setFriends] = useState([]);
@@ -45,6 +192,8 @@ export default function CommunityTab({ currentUser }) {
   const [searchResult, setSearchResult] = useState(null);
   const [searchStatus, setSearchStatus] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { rankings, loadingBoard } = useLeaderboard(currentUser, friends);
 
   // Listen to friendships
   useEffect(() => {
@@ -127,14 +276,12 @@ export default function CommunityTab({ currentUser }) {
         setSearchStatus("No user found with that email. They may need to sign in first.");
       } else {
         const userData = { uid: snap.docs[0].id, ...snap.docs[0].data() };
-        // Check if already friends
         const fq = query(collection(db, "friendships"), where("uids", "array-contains", currentUser.uid));
         const fsnap = await getDocs(fq);
         const alreadyFriends = fsnap.docs.some(d => d.data().uids.includes(userData.uid));
         if (alreadyFriends) {
           setSearchStatus("You're already friends with this person.");
         } else {
-          // Check if request already sent
           const rq = query(
             collection(db, "friend_requests"),
             where("fromUid", "==", currentUser.uid),
@@ -149,7 +296,7 @@ export default function CommunityTab({ currentUser }) {
           }
         }
       }
-    } catch (err) {
+    } catch {
       setSearchStatus("Something went wrong. Try again.");
     }
     setLoading(false);
@@ -166,7 +313,7 @@ export default function CommunityTab({ currentUser }) {
       setSearchResult(null);
       setSearchEmail("");
       setSearchStatus(`Request sent to ${toUser.displayName || toUser.email}!`);
-    } catch (err) {
+    } catch {
       setSearchStatus("Failed to send request.");
     }
   };
@@ -178,34 +325,23 @@ export default function CommunityTab({ currentUser }) {
         createdAt: serverTimestamp(),
       });
       await deleteDoc(doc(db, "friend_requests", request.docId));
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const declineRequest = async (request) => {
-    try {
-      await deleteDoc(doc(db, "friend_requests", request.docId));
-    } catch (err) {
-      console.error(err);
-    }
+    try { await deleteDoc(doc(db, "friend_requests", request.docId)); }
+    catch (err) { console.error(err); }
   };
 
   const cancelRequest = async (request) => {
-    try {
-      await deleteDoc(doc(db, "friend_requests", request.docId));
-    } catch (err) {
-      console.error(err);
-    }
+    try { await deleteDoc(doc(db, "friend_requests", request.docId)); }
+    catch (err) { console.error(err); }
   };
 
   const removeFriend = async (friend) => {
     if (!window.confirm(`Remove ${friend.displayName || friend.email} from your community?`)) return;
-    try {
-      await deleteDoc(doc(db, "friendships", friend.docId));
-    } catch (err) {
-      console.error(err);
-    }
+    try { await deleteDoc(doc(db, "friendships", friend.docId)); }
+    catch (err) { console.error(err); }
   };
 
   return (
@@ -217,7 +353,14 @@ export default function CommunityTab({ currentUser }) {
         )}
       </div>
 
-      {/* Sub-tabs */}
+      {/* ── Leaderboard ── */}
+      <LeaderboardSection
+        rankings={rankings}
+        loadingBoard={loadingBoard}
+        hasFriends={friends.length > 0}
+      />
+
+      {/* ── Subtabs ── */}
       <div className="subtab-row">
         {["friends", "requests", "add"].map((t) => (
           <button
@@ -225,14 +368,14 @@ export default function CommunityTab({ currentUser }) {
             className={`subtab ${tab === t ? "active" : ""}`}
             onClick={() => setTab(t)}
           >
-            {t === "friends" ? `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` :
+            {t === "friends"  ? `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` :
              t === "requests" ? `Requests${incoming.length > 0 ? ` · ${incoming.length}` : ""}` :
              "Add friend"}
           </button>
         ))}
       </div>
 
-      {/* Friends list */}
+      {/* ── Friends list ── */}
       {tab === "friends" && (
         <div className="section">
           {friends.length === 0 ? (
@@ -252,7 +395,9 @@ export default function CommunityTab({ currentUser }) {
                       <div className="activity-detail">{f.email}</div>
                     </div>
                     <button className="icon-btn" onClick={() => removeFriend(f)} title="Remove friend">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
                     </button>
                   </div>
                 );
@@ -262,7 +407,7 @@ export default function CommunityTab({ currentUser }) {
         </div>
       )}
 
-      {/* Requests */}
+      {/* ── Requests ── */}
       {tab === "requests" && (
         <div className="section">
           {incoming.length > 0 && (
@@ -304,8 +449,10 @@ export default function CommunityTab({ currentUser }) {
                         <div className="activity-name">{r.toUser?.displayName || "User"}</div>
                         <div className="activity-detail">{r.toUser?.email}</div>
                       </div>
-                      <button className="icon-btn" onClick={() => cancelRequest(r)} title="Cancel request">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <button className="icon-btn" onClick={() => cancelRequest(r)} title="Cancel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
                       </button>
                     </div>
                   );
@@ -315,14 +462,12 @@ export default function CommunityTab({ currentUser }) {
           )}
 
           {incoming.length === 0 && outgoing.length === 0 && (
-            <div className="empty-state">
-              <p>No pending requests.</p>
-            </div>
+            <div className="empty-state"><p>No pending requests.</p></div>
           )}
         </div>
       )}
 
-      {/* Add friend */}
+      {/* ── Add friend ── */}
       {tab === "add" && (
         <div className="section">
           <div className="section-label">Search by email</div>
@@ -340,9 +485,7 @@ export default function CommunityTab({ currentUser }) {
             </button>
           </div>
 
-          {searchStatus && (
-            <p className="search-status">{searchStatus}</p>
-          )}
+          {searchStatus && <p className="search-status">{searchStatus}</p>}
 
           {searchResult && (
             <div className="activity-item" style={{ marginTop: 12, alignItems: "center" }}>
