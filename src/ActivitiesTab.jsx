@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  collection, addDoc, deleteDoc, doc,
-  onSnapshot, query, orderBy, serverTimestamp
+  collection, deleteDoc, doc,
+  onSnapshot, query, orderBy
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -42,7 +42,7 @@ function isYesterday(ts) {
 
 // ─── Log Form Modal ───────────────────────────────────────────────────────────
 
-function LogForm({ onClose, onSave }) {
+export function LogForm({ onClose, onSave }) {
   const [type, setType] = useState(ACTIVITY_TYPES[0].name);
   const [litres, setLitres] = useState(ACTIVITY_TYPES[0].defaultLitres);
   const [saving, setSaving] = useState(false);
@@ -111,9 +111,8 @@ function LogForm({ onClose, onSave }) {
 
 // ─── Activities Tab ───────────────────────────────────────────────────────────
 
-export default function ActivitiesTab({ currentUser }) {
+export default function ActivitiesTab({ currentUser, onLogClick }) {
   const [activities, setActivities] = useState([]);
-  const [showForm, setShowForm] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
@@ -127,14 +126,6 @@ export default function ActivitiesTab({ currentUser }) {
     });
     return unsub;
   }, [currentUser]);
-
-  const handleSave = async ({ type, litres }) => {
-    await addDoc(collection(db, "users", currentUser.uid, "activities"), {
-      type,
-      litres,
-      createdAt: serverTimestamp(),
-    });
-  };
 
   const handleDelete = async (id) => {
     setDeleting(id);
@@ -173,7 +164,7 @@ export default function ActivitiesTab({ currentUser }) {
       </div>
 
       <div className="section">
-        <button className="add-btn" onClick={() => setShowForm(true)}>
+        <button className="add-btn" onClick={onLogClick}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -208,10 +199,6 @@ export default function ActivitiesTab({ currentUser }) {
           <div className="section-label">Earlier</div>
           <div className="activity-list">{renderList(earlierItems)}</div>
         </div>
-      )}
-
-      {showForm && (
-        <LogForm onClose={() => setShowForm(false)} onSave={handleSave} />
       )}
     </div>
   );
