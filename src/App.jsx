@@ -1,4 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "./firebase";
+import LoginScreen from "./LoginScreen";
+import CommunityTab from "./CommunityTab";
 import "./App.css";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -55,13 +60,8 @@ function Gauge({ used, goal }) {
     <div className="gauge-card">
       <svg className="gauge-ring" viewBox="0 0 88 88">
         <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="7" />
-        <circle
-          cx="44" cy="44" r="36" fill="none"
-          stroke="#1D9E75" strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform="rotate(-90 44 44)"
-        />
+        <circle cx="44" cy="44" r="36" fill="none" stroke="#1D9E75" strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={circumference} strokeDashoffset={offset} transform="rotate(-90 44 44)" />
         <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#085041" fontFamily="DM Mono, monospace">today</text>
         <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill="#085041" fontFamily="DM Mono, monospace">{pct}%</text>
       </svg>
@@ -78,8 +78,12 @@ function Gauge({ used, goal }) {
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
-function HomeTab() {
+function HomeTab({ user }) {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const firstName = user?.displayName?.split(" ")[0] || "there";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   const recentActivities = [
     { name: "Shower", meta: "45 L · 8:12am", color: "#1D9E75" },
     { name: "Dishwasher", meta: "12 L · 7:50am", color: "#378ADD" },
@@ -91,11 +95,12 @@ function HomeTab() {
     { value: "4", label: "Goals met" },
     { value: "7-day", label: "streak" },
   ];
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <div className="page-title">Good morning</div>
+          <div className="page-title">{greeting}, {firstName}</div>
           <div className="greeting">{today}</div>
         </div>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round">
@@ -103,9 +108,7 @@ function HomeTab() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       </div>
-
       <Gauge used={93} goal={150} />
-
       <div className="section">
         <div className="section-label">This week</div>
         <div className="stat-row">
@@ -117,7 +120,6 @@ function HomeTab() {
           ))}
         </div>
       </div>
-
       <div className="section">
         <div className="section-label">Recent</div>
         <div className="activity-list">
@@ -154,7 +156,6 @@ function ActivitiesTab() {
       <div className="page-header">
         <div className="page-title">Activities</div>
       </div>
-
       <div className="section">
         <button className="add-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
@@ -164,7 +165,6 @@ function ActivitiesTab() {
           Log activity
         </button>
       </div>
-
       {Object.entries(ACTIVITIES_DATA).map(([day, items]) => (
         <div className="section" key={day}>
           <div className="section-label">{day}</div>
@@ -186,79 +186,33 @@ function ActivitiesTab() {
   );
 }
 
-// ─── Community Tab ────────────────────────────────────────────────────────────
-
-const LEADERBOARD = [
-  { initials: "SR", name: "Sarah R.", litres: "1,840 L", avatarBg: "#FAEEDA", avatarText: "#633806", rank: 1 },
-  { initials: "OD", name: "You", litres: "2,210 L", avatarBg: "#E1F5EE", avatarText: "#085041", rank: 2, isYou: true },
-  { initials: "JK", name: "James K.", litres: "2,450 L", avatarBg: "#E6F1FB", avatarText: "#0C447C", rank: 3 },
-  { initials: "ML", name: "Maya L.", litres: "2,670 L", avatarBg: "#FBEAF0", avatarText: "#4B1528", rank: 4 },
-];
-
-const FEED = [
-  { initials: "SR", name: "Sarah R.", time: "2 hours ago", text: "Hit my weekly goal for the 3rd week in a row! Switching to shorter showers made a huge difference.", avatarBg: "#FAEEDA", avatarText: "#633806" },
-  { initials: "JK", name: "James K.", time: "Yesterday", text: "Anyone else tracking garden usage? My sprinkler is using way more than I thought.", avatarBg: "#E6F1FB", avatarText: "#0C447C" },
-];
-
-function CommunityTab() {
-  return (
-    <div className="page">
-      <div className="page-header">
-        <div className="page-title">Community</div>
-      </div>
-
-      <div className="section">
-        <div className="section-label">Leaderboard · this month</div>
-        <div className="card-block">
-          {LEADERBOARD.map((u) => (
-            <div className="leaderboard-row" key={u.name}>
-              <span className={`rank ${u.rank === 1 ? "gold" : ""}`}>{u.rank}</span>
-              <div className="avatar" style={{ background: u.avatarBg, color: u.avatarText }}>{u.initials}</div>
-              <span className="lb-name" style={{ color: u.isYou ? "#1D9E75" : undefined }}>{u.name}</span>
-              <span className="activity-meta">{u.litres}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-label">Community feed</div>
-        {FEED.map((f) => (
-          <div className="community-card" key={f.name + f.time}>
-            <div className="community-header">
-              <div className="avatar" style={{ background: f.avatarBg, color: f.avatarText }}>{f.initials}</div>
-              <div>
-                <div className="community-name">{f.name}</div>
-                <div className="community-time">{f.time}</div>
-              </div>
-            </div>
-            <div className="community-text">{f.text}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
-const SETTINGS = [
-  { label: "Daily goal", value: "150 L" },
-  { label: "Notifications", value: "On" },
-  { label: "Units", value: "Litres" },
-  { label: "Household size", value: "2 people" },
-];
+function ProfileTab({ user }) {
+  const handleSignOut = () => signOut(auth);
+  const initials = user?.displayName
+    ? user.displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
 
-const BADGES = ["7-day streak", "Goal crusher", "Eco saver"];
+  const SETTINGS = [
+    { label: "Daily goal", value: "150 L" },
+    { label: "Notifications", value: "On" },
+    { label: "Units", value: "Litres" },
+    { label: "Household size", value: "2 people" },
+  ];
+  const BADGES = ["7-day streak", "Goal crusher", "Eco saver"];
 
-function ProfileTab() {
   return (
     <div className="page">
       <div className="profile-header">
-        <div className="profile-avatar">OD</div>
+        {user?.photoURL ? (
+          <img src={user.photoURL} alt="avatar" className="profile-avatar-img" />
+        ) : (
+          <div className="profile-avatar">{initials}</div>
+        )}
         <div>
-          <div className="profile-name">Oisin D.</div>
-          <div className="profile-sub">Member since Jan 2025 · Dundee</div>
+          <div className="profile-name">{user?.displayName || "User"}</div>
+          <div className="profile-sub">{user?.email}</div>
         </div>
       </div>
 
@@ -282,6 +236,10 @@ function ProfileTab() {
           ))}
         </div>
       </div>
+
+      <div className="section">
+        <button className="signout-btn" onClick={handleSignOut}>Sign out</button>
+      </div>
     </div>
   );
 }
@@ -298,15 +256,49 @@ const TABS = [
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [user, setUser] = useState(undefined); // undefined = loading
   const [activeTab, setActiveTab] = useState("home");
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Save/update user profile in Firestore on every login
+        await setDoc(doc(db, "users", firebaseUser.uid), {
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName,
+          email: firebaseUser.email.toLowerCase(),
+          photoURL: firebaseUser.photoURL,
+          lastSeen: serverTimestamp(),
+        }, { merge: true });
+        setUser(firebaseUser);
+      } else {
+        setUser(null);
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Loading state
+  if (user === undefined) {
+    return (
+      <div className="app-shell" style={{ alignItems: "center", justifyContent: "center" }}>
+        <div className="loading-dot" />
+      </div>
+    );
+  }
+
+  // Not signed in
+  if (user === null) {
+    return <LoginScreen />;
+  }
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home": return <HomeTab />;
+      case "home": return <HomeTab user={user} />;
       case "activities": return <ActivitiesTab />;
-      case "community": return <CommunityTab />;
-      case "profile": return <ProfileTab />;
-      default: return <HomeTab />;
+      case "community": return <CommunityTab currentUser={user} />;
+      case "profile": return <ProfileTab user={user} />;
+      default: return <HomeTab user={user} />;
     }
   };
 
@@ -328,22 +320,12 @@ export default function App() {
           </svg>
         </span>
       </div>
-
       <div className="screen">{renderTab()}</div>
-
       <div className="tab-bar">
         {TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            className={`tab ${activeTab === id ? "active" : ""}`}
-            onClick={() => setActiveTab(id)}
-          >
-            <div className="tab-icon">
-              <Icon active={activeTab === id} />
-            </div>
-            <span className="tab-label" style={{ color: activeTab === id ? "#1D9E75" : undefined }}>
-              {label}
-            </span>
+          <button key={id} className={`tab ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>
+            <div className="tab-icon"><Icon active={activeTab === id} /></div>
+            <span className="tab-label" style={{ color: activeTab === id ? "#1D9E75" : undefined }}>{label}</span>
           </button>
         ))}
       </div>
