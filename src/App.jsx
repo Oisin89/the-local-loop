@@ -102,24 +102,33 @@ const ACTIVITY_COLORS = {
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
 function Gauge({ used, goal }) {
-  const pct = goal > 0 ? Math.min(100, Math.round((used / goal) * 100)) : 0;
+  const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
+  const over = rawPct > 100;
   const circumference = 2 * Math.PI * 36;
-  const offset = circumference - (pct / 100) * circumference;
+  const ringPct = Math.min(rawPct, 100);
+  const offset = circumference - (ringPct / 100) * circumference;
+  const ringColor = over ? "#E24B4A" : "#378ADD";
+
   return (
-    <div className="gauge-card">
+    <div className="gauge-card" style={over ? { background: "rgba(226,75,74,0.08)", borderColor: "rgba(226,75,74,0.3)" } : {}}>
       <svg className="gauge-ring" viewBox="0 0 88 88">
         <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="7" />
-        <circle cx="44" cy="44" r="36" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round"
+        <circle cx="44" cy="44" r="36" fill="none" stroke={ringColor} strokeWidth="7" strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={offset} transform="rotate(-90 44 44)" />
         <text x="44" y="40" textAnchor="middle" fontSize="10" fontWeight="600" fill="#ffffff" fontFamily="DM Mono, monospace">today</text>
-        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill="#ffffff" fontFamily="DM Mono, monospace">{pct}%</text>
+        <text x="44" y="55" textAnchor="middle" fontSize="14" fontWeight="600" fill={over ? "#E24B4A" : "#ffffff"} fontFamily="DM Mono, monospace">{rawPct}%</text>
       </svg>
       <div className="gauge-info">
-        <div className="gauge-litres">{used} L</div>
+        <div className="gauge-litres" style={over ? { color: "#E24B4A" } : {}}>{used} L</div>
         <div className="gauge-sublabel">of {goal} L daily goal</div>
         <div className="gauge-bar-wrap">
-          <div className="gauge-bar-fill" style={{ width: `${pct}%` }} />
+          <div className="gauge-bar-fill" style={{ width: "100%", background: over ? "#E24B4A" : undefined }} />
         </div>
+        {over && (
+          <div style={{ fontSize: 11, color: "#E24B4A", marginTop: 6, fontWeight: 500 }}>
+            {used - goal} L over daily goal
+          </div>
+        )}
       </div>
     </div>
   );
