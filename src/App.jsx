@@ -669,6 +669,126 @@ function WeatherNudge() {
   );
 }
 
+// ─── Daily Quiz ───────────────────────────────────────────────────────────────
+
+const QUIZ_QUESTIONS = [
+  { q: "How many litres does the average UK person use per day?",
+    options: ["80 L", "150 L", "230 L"], correct: 1,
+    fact: "The UK average is about 150 litres per person per day — equivalent to roughly 6 full bathtubs." },
+  { q: "How much water does a typical 5-minute shower use?",
+    options: ["10 L", "40 L", "75 L"], correct: 1,
+    fact: "A standard shower head uses around 8 litres per minute, so 5 minutes = ~40 litres." },
+  { q: "How much does a full bath typically use?",
+    options: ["40 L", "80 L", "140 L"], correct: 1,
+    fact: "A full bath uses around 80 litres — about twice as much as a 5-minute shower." },
+  { q: "How much water does a hosepipe use per hour?",
+    options: ["200 L", "600 L", "1,000 L"], correct: 2,
+    fact: "A hosepipe uses up to 1,000 litres per hour — the same as six days of drinking water for one person." },
+  { q: "What percentage of Earth's water is available freshwater?",
+    options: ["0.3%", "3%", "10%"], correct: 0,
+    fact: "Only about 0.3% of all water on Earth is accessible freshwater — the rest is saltwater or locked in ice." },
+  { q: "How much water does a dripping tap waste per year?",
+    options: ["500 L", "5,500 L", "15,000 L"], correct: 1,
+    fact: "A slow drip can waste over 5,500 litres a year — that's enough for 68 full baths." },
+  { q: "How many litres does a modern low-flush toilet use per flush?",
+    options: ["3–4 L", "9–12 L", "15–20 L"], correct: 0,
+    fact: "Modern dual-flush toilets use just 3–4 litres on a half flush, down from 13 litres for older models." },
+  { q: "How much water does a washing machine use per cycle?",
+    options: ["20 L", "50 L", "100 L"], correct: 1,
+    fact: "Most modern washing machines use around 50 litres per cycle — always run full loads to make it count." },
+  { q: "How many litres does a running tap produce per minute?",
+    options: ["2 L", "6 L", "12 L"], correct: 1,
+    fact: "A standard tap runs at about 6 litres per minute — leaving it on while brushing wastes up to 12 litres." },
+  { q: "How much water is needed to produce 1 kg of beef?",
+    options: ["500 L", "5,000 L", "15,000 L"], correct: 2,
+    fact: "It takes roughly 15,000 litres of water to produce just 1 kg of beef, mostly for growing animal feed." },
+  { q: "What time of day is best to water your garden to reduce evaporation?",
+    options: ["Midday", "Early morning", "Afternoon"], correct: 1,
+    fact: "Watering early morning reduces evaporation by up to 25% compared to watering during the heat of the day." },
+  { q: "How many litres does a full dishwasher cycle typically use?",
+    options: ["6 L", "12 L", "25 L"], correct: 1,
+    fact: "A full dishwasher cycle uses around 12 litres — far less than washing the same dishes by hand (up to 60 L)." },
+  { q: "How much of the human body is made up of water?",
+    options: ["40%", "60%", "80%"], correct: 1,
+    fact: "About 60% of the human body is water. Staying well hydrated is essential for basic body functions." },
+  { q: "Which country has the highest per-person daily water use?",
+    options: ["Australia", "United States", "United Kingdom"], correct: 1,
+    fact: "The US averages around 380 litres per person per day — more than double the UK average." },
+];
+
+function DailyQuiz({ user }) {
+  const [answered, setAnswered] = useState(null); // index of chosen option, or null
+  const [saving, setSaving] = useState(false);
+
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const q = QUIZ_QUESTIONS[dayOfYear % QUIZ_QUESTIONS.length];
+  const todayStr = now.toDateString();
+
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "users", user.uid)).then(snap => {
+      const data = snap.data();
+      if (data?.quizDate === todayStr && data?.quizAnswer != null) {
+        setAnswered(data.quizAnswer);
+      }
+    });
+  }, [user]);
+
+  const choose = async (idx) => {
+    if (answered !== null || saving) return;
+    setSaving(true);
+    setAnswered(idx);
+    await updateDoc(doc(db, "users", user.uid), {
+      quizDate: todayStr,
+      quizAnswer: idx,
+    });
+    setSaving(false);
+  };
+
+  const isRevealed = answered !== null;
+
+  return (
+    <div className="section">
+      <div className="quiz-card">
+        <div className="quiz-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C63D4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span className="quiz-label">Daily quiz</span>
+        </div>
+        <p className="quiz-question">{q.q}</p>
+        <div className="quiz-options">
+          {q.options.map((opt, i) => {
+            let state = "idle";
+            if (isRevealed) {
+              if (i === q.correct) state = "correct";
+              else if (i === answered) state = "wrong";
+              else state = "dim";
+            }
+            return (
+              <button
+                key={i}
+                className={`quiz-option ${state}`}
+                onClick={() => choose(i)}
+                disabled={isRevealed}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        {isRevealed && (
+          <p className="quiz-fact">
+            {answered === q.correct ? "✓ Correct! " : "✗ Not quite — "}
+            {q.fact}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Weekly Bar Chart ─────────────────────────────────────────────────────────
 
 function WeeklyChart({ activities, dailyGoal, now }) {
@@ -792,7 +912,7 @@ function HomeTab({ user, activities, dailyGoal }) {
 
       <ConservationTips />
 
-      <PersonalBest activities={activities} dailyGoal={dailyGoal} />
+      <DailyQuiz user={user} />
 
       <WeatherNudge />
 
@@ -820,6 +940,8 @@ function HomeTab({ user, activities, dailyGoal }) {
           </div>
         )}
       </div>
+
+      <PersonalBest activities={activities} dailyGoal={dailyGoal} />
 
       <WeeklyChart activities={activities} dailyGoal={dailyGoal} now={now} />
     </div>

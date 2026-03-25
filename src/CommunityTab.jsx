@@ -181,6 +181,76 @@ function LeaderboardSection({ rankings, loadingBoard, hasFriends }) {
   );
 }
 
+// ─── Streak leaderboard hook ──────────────────────────────────────────────────
+
+function useStreakLeaderboard(currentUser, friends) {
+  const [streakRankings, setStreakRankings] = useState([]);
+  const [loadingStreak, setLoadingStreak] = useState(false);
+  const friendKey = friends.map(f => f.uid).sort().join(",");
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 62);
+
+    const fetchData = async (uid) => {
+      try {
+        const [actsSnap, userSnap] = await Promise.all([
+          getDocs(query(collection(db, "users", uid, "activities"), where("createdAt", ">=", cutoff))),
+          getDoc(doc(db, "users", uid)),
+        ]);
+        const activities = actsSnap.docs.map(d => d.data());
+        const dailyGoal = userSnap.data()?.dailyGoal || 150;
+        return { activities, dailyGoal };
+      } catch { return null; }
+    };
+
+    const calcStreak = (activities, dailyGoal) => {
+      const now = new Date();
+      let streak = 0;
+      for (let i = 0; i < 61; i++) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const key = d.toDateString();
+        const dayActs = activities.filter(a => {
+          const ad = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+          return ad.toDateString() === key;
+        });
+        const total = dayActs.reduce((s, a) => s + (a.litres || 0), 0);
+        if (dayActs.length > 0 && total <= dailyGoal) { streak++; }
+        else if (i === 0 && dayActs.length === 0) { continue; }
+        else { break; }
+      }
+      return streak;
+    };
+
+    const run = async () => {
+      setLoadingStreak(true);
+      const participants = [
+        { uid: currentUser.uid, displayName: currentUser.displayName, isMe: true },
+        ...friends.map(f => ({ uid: f.uid, displayName: f.displayName, isMe: false })),
+      ];
+      const results = await Promise.all(
+        participants.map(async (p) => {
+          const data = await fetchData(p.uid);
+          if (!data) return null;
+          return { ...p, streak: calcStreak(data.activities, data.dailyGoal) };
+        })
+      );
+      setStreakRankings(
+        results.filter(Boolean).sort((a, b) => b.streak - a.streak)
+      );
+      setLoadingStreak(false);
+    };
+
+    run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid, friendKey]);
+
+  return { streakRankings, loadingStreak };
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CommunityTab({ currentUser }) {
@@ -194,6 +264,7 @@ export default function CommunityTab({ currentUser }) {
   const [loading, setLoading] = useState(false);
 
   const { rankings, loadingBoard } = useLeaderboard(currentUser, friends);
+  const { streakRankings, loadingStreak } = useStreakLeaderboard(currentUser, friends);
 
   // Listen to friendships
   useEffect(() => {
@@ -353,12 +424,61 @@ export default function CommunityTab({ currentUser }) {
         )}
       </div>
 
-      {/* ── Leaderboard ── */}
+      {/* ── Monthly usage leaderboard ── */}
       <LeaderboardSection
         rankings={rankings}
         loadingBoard={loadingBoard}
         hasFriends={friends.length > 0}
       />
+
+      {/* ── Streak leaderboard ── */}
+      {(friends.length > 0 || loadingStreak) && (
+        <div className="section">
+          <div className="section-label">Streak leaderboard</div>
+          {loadingStreak ? (
+            <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text2)", fontSize: 13 }}>Loading…</div>
+          ) : (
+            <div className="card-block">
+              {streakRankings.map((p, i) => {
+                const colors = getAvatarColor(p.uid);
+                const rankColor = i < 3 ? RANK_COLORS[i] : "var(--text2)";
+                return (
+                  <div key={p.uid} className="leaderboard-row" style={{
+                    borderBottom: i < streakRankings.length - 1 ? "0.5px solid var(--border)" : "none",
+                    background: p.isMe ? "rgba(74,151,232,0.06)" : "transparent",
+                  }}>
+                    <span className="leaderboard-rank" style={{ color: rankColor }}>
+                      {i === 0 ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill={rankColor} stroke="none">
+                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                        </svg>
+                      ) : i + 1}
+                    </span>
+                    <Avatar
+                      initials={getInitials(p.displayName)}
+                      bg={p.isMe ? "var(--accent-bg)" : colors.bg}
+                      color={p.isMe ? "var(--accent-dark)" : colors.color}
+                      size={36}
+                    />
+                    <span className="leaderboard-name" style={{
+                      color: p.isMe ? "var(--accent-dark)" : "var(--text)",
+                      fontWeight: p.isMe ? 600 : 500,
+                    }}>
+                      {p.isMe ? "You" : shortName(p.displayName)}
+                    </span>
+                    <span className="leaderboard-total" style={{
+                      color: p.isMe ? "var(--accent)" : p.streak > 0 ? "#C9A30A" : "var(--text2)",
+                      fontWeight: p.isMe || p.streak > 0 ? 600 : 400,
+                    }}>
+                      {p.streak > 0 ? `🔥 ${p.streak}d` : "—"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Subtabs ── */}
       <div className="subtab-row">
