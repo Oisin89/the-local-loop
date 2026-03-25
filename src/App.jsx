@@ -241,6 +241,26 @@ export const BADGE_DEFS = [
   },
 ];
 
+// ─── Water equivalent helper ──────────────────────────────────────────────────
+
+function waterEquivalent(litres) {
+  if (!litres || litres <= 0) return null;
+  if (litres >= 160) {
+    const n = (litres / 80).toFixed(1);
+    return `${n} bath${parseFloat(n) !== 1 ? "s" : ""}`;
+  }
+  if (litres >= 40) {
+    const n = (litres / 40).toFixed(1);
+    return `${n} shower${parseFloat(n) !== 1 ? "s" : ""}`;
+  }
+  if (litres >= 12) {
+    const n = Math.round(litres / 12);
+    return `${n} dishwasher cycle${n !== 1 ? "s" : ""}`;
+  }
+  const n = Math.round(litres / 4);
+  return `${n} toilet flush${n !== 1 ? "es" : ""}`;
+}
+
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
 function Gauge({ used, goal, streak = 0 }) {
@@ -352,6 +372,11 @@ function Gauge({ used, goal, streak = 0 }) {
                 {streak} day streak
               </span>
             </div>
+          )}
+          {waterEquivalent(used) && (
+            <span style={{ fontSize: 11, color: "var(--text2)", marginTop: 2, opacity: 0.8 }}>
+              ≈ {waterEquivalent(used)}
+            </span>
           )}
         </div>
       </div>
@@ -946,6 +971,242 @@ function NotificationsPopup({ user, notifications, onClose }) {
   );
 }
 
+// ─── Household Water Audit ────────────────────────────────────────────────────
+
+const AUDIT_QUESTIONS = [
+  {
+    id: "people",
+    emoji: "🏠",
+    q: "How many people live in your household?",
+    options: [
+      { label: "Just me",    value: 1   },
+      { label: "2 people",   value: 2   },
+      { label: "3 people",   value: 3   },
+      { label: "4 or more",  value: 4.5 },
+    ],
+  },
+  {
+    id: "showerFreq",
+    emoji: "🚿",
+    q: "How often does each person shower or bathe?",
+    options: [
+      { label: "Every day",           value: 7   },
+      { label: "Every other day",     value: 3.5 },
+      { label: "2–3 times a week",    value: 2.5 },
+    ],
+  },
+  {
+    id: "showerMins",
+    emoji: "⏱",
+    q: "How long is a typical shower?",
+    options: [
+      { label: "Under 5 minutes",   value: 4    },
+      { label: "5–10 minutes",      value: 7.5  },
+      { label: "Over 10 minutes",   value: 13   },
+    ],
+  },
+  {
+    id: "washing",
+    emoji: "🫧",
+    q: "How often do you run the washing machine per week?",
+    options: [
+      { label: "5–7 times",      value: 6   },
+      { label: "3–4 times",      value: 3.5 },
+      { label: "1–2 times",      value: 1.5 },
+    ],
+  },
+  {
+    id: "garden",
+    emoji: "🌱",
+    q: "Do you water a garden or outdoor plants?",
+    options: [
+      { label: "Yes, most days",         value: 20 },
+      { label: "Occasionally",           value: 7  },
+      { label: "No garden / rarely",     value: 0  },
+    ],
+  },
+];
+
+function calcAuditResult(ans) {
+  const people      = ans.people;
+  const showerFreq  = ans.showerFreq;  // times/week per person
+  const showerMins  = ans.showerMins;  // minutes
+  const washing     = ans.washing;     // cycles/week
+  const garden      = ans.garden;      // L/day
+
+  // Per-person daily estimates
+  const showerDay  = (showerFreq / 7) * showerMins * 8; // 8 L/min flow
+  const toiletDay  = 5 * 4;   // ~5 flushes × 4 L
+  const tapMiscDay = 14;       // cooking, drinking, teeth, etc.
+  const perPerson  = showerDay + toiletDay + tapMiscDay;
+
+  // Shared household daily
+  const washingDay = (washing * 50) / 7; // 50 L per cycle
+  const total      = Math.round(perPerson * people + washingDay + garden);
+  const perPersonDay = Math.round(total / people);
+
+  // Build up to 3 personalised recommendations
+  const recs = [];
+  if (showerMins >= 7.5) {
+    const saving = Math.round((showerMins - 4) * 8 * (showerFreq / 7) * people);
+    recs.push({
+      emoji: "🚿",
+      text: `Cutting showers to under 5 minutes could save your household ~${saving} L/day.`,
+      saving,
+    });
+  }
+  if (washing >= 5) {
+    recs.push({
+      emoji: "🫧",
+      text: "Running the washing machine every other day instead of daily saves around 25 L. Always wait for a full load.",
+      saving: 25,
+    });
+  }
+  if (garden >= 15) {
+    const saving = Math.round(garden * 0.25);
+    recs.push({
+      emoji: "🌱",
+      text: `Watering before 8am or after 7pm cuts evaporation by up to 25% — saving ~${saving} L/day.`,
+      saving,
+    });
+  }
+  if (recs.length < 2) {
+    recs.push({
+      emoji: "🔧",
+      text: "A dripping tap wastes up to 5,500 L a year. Check all taps and report leaks promptly.",
+      saving: 15,
+    });
+  }
+  if (recs.length < 3) {
+    recs.push({
+      emoji: "💧",
+      text: "Turning off the tap while brushing your teeth saves up to 12 L per person per day.",
+      saving: 12,
+    });
+  }
+
+  return { perPersonDay, total, people, recs: recs.slice(0, 3) };
+}
+
+function HouseholdAuditPopup({ user, onComplete }) {
+  const [step, setStep]     = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [result, setResult]  = useState(null);
+  const [saving, setSaving]  = useState(false);
+
+  const isResult = step === AUDIT_QUESTIONS.length;
+
+  const choose = (value) => {
+    const q = AUDIT_QUESTIONS[step];
+    const next = { ...answers, [q.id]: value };
+    setAnswers(next);
+    if (step + 1 === AUDIT_QUESTIONS.length) setResult(calcAuditResult(next));
+    setStep(s => s + 1);
+  };
+
+  const handleDone = async () => {
+    setSaving(true);
+    try { await updateDoc(doc(db, "users", user.uid), { auditCompleted: true }); } catch {}
+    onComplete();
+  };
+
+  const progress = (step / AUDIT_QUESTIONS.length) * 100;
+
+  return (
+    <div className="settings-overlay">
+      <div className="settings-sheet" style={{ maxHeight: "92%" }}>
+        <div className="settings-sheet-handle" />
+
+        {!isResult ? (
+          <div style={{ padding: "14px 20px 28px" }}>
+            {/* Progress bar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
+              <div style={{ flex: 1, height: 3, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
+                <div style={{ height: "100%", background: "var(--accent)", borderRadius: 99, width: `${progress}%`, transition: "width 0.3s ease" }} />
+              </div>
+              <span style={{ fontSize: 11, color: "var(--text2)", flexShrink: 0 }}>
+                {step + 1} / {AUDIT_QUESTIONS.length}
+              </span>
+            </div>
+
+            <div style={{ fontSize: 30, marginBottom: 10 }}>{AUDIT_QUESTIONS[step].emoji}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 20 }}>
+              {AUDIT_QUESTIONS[step].q}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {AUDIT_QUESTIONS[step].options.map(opt => (
+                <button key={opt.label} className="audit-option-btn" onClick={() => choose(opt.value)}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : result ? (
+          <div style={{ padding: "14px 20px 28px", overflowY: "auto" }}>
+            <div style={{ fontSize: 30, marginBottom: 8 }}>📊</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+              Your water audit results
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 18 }}>
+              Estimated from your household's habits.
+            </div>
+
+            {/* Usage estimate */}
+            <div className="card-block" style={{ marginBottom: 16, padding: "14px 14px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 10, borderBottom: "0.5px solid var(--border)", marginBottom: 10 }}>
+                <span style={{ fontSize: 13, color: "var(--text2)" }}>Est. per person / day</span>
+                <span style={{ fontSize: 19, fontWeight: 700, fontFamily: "var(--mono)", color: result.perPersonDay <= 150 ? "#27AE60" : "#E24B4A" }}>
+                  {result.perPersonDay} L
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 13, color: "var(--text2)" }}>UK average</span>
+                <span style={{ fontSize: 14, fontWeight: 600, fontFamily: "var(--mono)", color: "var(--text2)" }}>150 L</span>
+              </div>
+              <div className="impact-bar-track">
+                <div className="impact-bar-fill" style={{
+                  width: `${Math.min((result.perPersonDay / 150) * 100, 100)}%`,
+                  background: result.perPersonDay <= 150 ? "#27AE60" : "#E24B4A",
+                }} />
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 8 }}>
+                {result.perPersonDay <= 150
+                  ? `You're ${150 - result.perPersonDay} L/day below the UK average — great start! 🎉`
+                  : `You're ${result.perPersonDay - 150} L/day above the UK average — room to improve.`}
+              </div>
+            </div>
+
+            {/* Recommendations */}
+            <div className="section-label" style={{ marginBottom: 10 }}>Top tips for your household</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 20 }}>
+              {result.recs.map((r, i) => (
+                <div key={i} style={{
+                  background: "var(--bg2)", borderRadius: 12, padding: "11px 13px",
+                  border: "0.5px solid var(--border)", display: "flex", gap: 10, alignItems: "flex-start",
+                }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{r.emoji}</span>
+                  <div>
+                    <p style={{ fontSize: 12, color: "var(--text)", lineHeight: 1.5 }}>{r.text}</p>
+                    {r.saving > 0 && (
+                      <span style={{ fontSize: 11, color: "#27AE60", fontWeight: 600, marginTop: 4, display: "block" }}>
+                        saves ~{r.saving} L/day
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button className="add-btn" onClick={handleDone} disabled={saving}>
+              {saving ? "Saving…" : "Start tracking my usage →"}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings Popup ───────────────────────────────────────────────────────────
 
 function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
@@ -1020,7 +1281,7 @@ function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
-function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, unreadCount = 0, onOpenNotifications }) {
+function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, unreadCount = 0, onOpenNotifications, auditCompleted, onOpenAudit }) {
   const now = useLiveDate();
   const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const firstName = user?.displayName?.split(" ")[0] || "there";
@@ -1064,6 +1325,27 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
       <Gauge used={todayTotal} goal={dailyGoal} streak={streak} />
 
       <DailyChallenge user={user} />
+
+      {!auditCompleted && (
+        <div className="section">
+          <div className="audit-invite-card">
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 26 }}>🏠</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.3 }}>
+                  Discover your water footprint
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>
+                  5 quick questions — get a personalised estimate
+                </div>
+              </div>
+            </div>
+            <button className="audit-start-btn" onClick={onOpenAudit}>
+              Take the household audit →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── This Week stats ── */}
       <div className="section">
@@ -1180,7 +1462,7 @@ function ProfileTab({ user, earnedBadgeIds }) {
 const TABS = [
   { id: "home",       label: "Home",       Icon: IconHome      },
   { id: "activities", label: "Activities", Icon: IconActivity  },
-  { id: "community",  label: "Friends",    Icon: IconCommunity },
+  { id: "community",  label: "Community",  Icon: IconCommunity },
   { id: "profile",    label: "Profile",    Icon: IconProfile   },
 ];
 
@@ -1196,6 +1478,8 @@ export default function App() {
   const [showSettings,         setShowSettings]         = useState(false);
   const [notifications,        setNotifications]        = useState([]);
   const [showNotifications,    setShowNotifications]    = useState(false);
+  const [auditCompleted,       setAuditCompleted]       = useState(false);
+  const [showAudit,            setShowAudit]            = useState(false);
 
   // Auth + initial profile load
   useEffect(() => {
@@ -1225,6 +1509,7 @@ export default function App() {
       if (data.dailyGoal)                    setDailyGoal(data.dailyGoal);
       if (data.challengesCompleted != null)  setChallengesCompleted(data.challengesCompleted);
       if (data.quizCorrectCount != null)     setQuizCorrectCount(data.quizCorrectCount);
+      if (data.auditCompleted != null)       setAuditCompleted(data.auditCompleted);
     });
     return unsub;
   }, [user]);
@@ -1308,7 +1593,7 @@ export default function App() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} unreadCount={notifications.filter(n => !n.read).length} onOpenNotifications={() => setShowNotifications(true)} />;
+      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} unreadCount={notifications.filter(n => !n.read).length} onOpenNotifications={() => setShowNotifications(true)} auditCompleted={auditCompleted} onOpenAudit={() => setShowAudit(true)} />;
       case "activities": return <ActivitiesTab currentUser={user} />;
       case "community":  return <CommunityTab currentUser={user} />;
       case "profile":    return <ProfileTab user={user} earnedBadgeIds={earnedBadgeIds} />;
@@ -1341,6 +1626,12 @@ export default function App() {
             user={user}
             notifications={notifications}
             onClose={() => setShowNotifications(false)}
+          />
+        )}
+        {showAudit && (
+          <HouseholdAuditPopup
+            user={user}
+            onComplete={() => { setAuditCompleted(true); setShowAudit(false); }}
           />
         )}
       </div>

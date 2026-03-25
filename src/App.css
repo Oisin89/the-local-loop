@@ -1320,3 +1320,60 @@ input, textarea, select { font-size: 16px; }
   border-radius: 99px;
   transition: width 0.7s ease;
 }
+
+/* ─── Household Audit ────────────────────────────────────────────────────── */
+
+.audit-invite-card {
+  background: linear-gradient(135deg, #EAF4FB 0%, #F0F8FF 100%);
+  border: 0.5px solid rgba(55,138,221,0.3);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .audit-invite-card {
+    background: linear-gradient(135deg, #152f52 0%, #1a3a5c 100%);
+    border-color: rgba(74,151,232,0.25);
+  }
+}
+
+.audit-start-btn {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  transition: all 0.2s ease;
+}
+.audit-start-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.audit-option-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  border: 0.5px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.audit-option-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-dark);
+}
