@@ -381,6 +381,15 @@ export default function CommunityTab({ currentUser }) {
         status: "pending",
         createdAt: serverTimestamp(),
       });
+      // Notify the recipient that they have a new friend request
+      await addDoc(collection(db, "users", toUser.uid, "notifications"), {
+        type: "friend_request",
+        title: "New friend request 👋",
+        body: `${currentUser.displayName || "Someone"} wants to connect with you.`,
+        emoji: "👋",
+        read: false,
+        createdAt: serverTimestamp(),
+      });
       setSearchResult(null);
       setSearchEmail("");
       setSearchStatus(`Request sent to ${toUser.displayName || toUser.email}!`);
