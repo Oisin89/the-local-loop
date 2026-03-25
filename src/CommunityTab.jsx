@@ -58,11 +58,17 @@ function CommunityImpactBoard() {
 
     const run = async () => {
       try {
-        const snap = await getDocs(
-          query(collectionGroup(db, "activities"), where("createdAt", ">=", monthStart))
-        );
-        const totalLitres = Math.round(snap.docs.reduce((s, d) => s + (d.data().litres || 0), 0));
-        const userIds = new Set(snap.docs.map(d => d.ref.parent.parent.id));
+        // Fetch all activities across every user, then filter by date in JS.
+        // This avoids the need for a collection-group index on createdAt.
+        const snap = await getDocs(collectionGroup(db, "activities"));
+        const thisDocs = snap.docs.filter(d => {
+          const ts = d.data().createdAt;
+          if (!ts) return false;
+          const date = ts.toDate ? ts.toDate() : new Date(ts);
+          return date >= monthStart;
+        });
+        const totalLitres = Math.round(thisDocs.reduce((s, d) => s + (d.data().litres || 0), 0));
+        const userIds = new Set(thisDocs.map(d => d.ref.parent.parent.id));
         const activeUsers = userIds.size;
         const daysElapsed = Math.max(1, now.getDate());
         const ukAvgTotal = 150 * activeUsers * daysElapsed;
