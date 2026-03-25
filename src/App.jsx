@@ -215,6 +215,30 @@ export const BADGE_DEFS = [
     color: "#C9A30A",
     check: ({ streak }) => streak >= 30,
   },
+  {
+    id: "quiz_1",
+    name: "Brain Teaser",
+    desc: "Answer your first daily quiz correctly",
+    emoji: "🧠",
+    color: "#7C63D4",
+    check: ({ quizCorrectCount }) => quizCorrectCount >= 1,
+  },
+  {
+    id: "quiz_3",
+    name: "Water Scholar",
+    desc: "Answer 3 daily quizzes correctly",
+    emoji: "🎓",
+    color: "#7C63D4",
+    check: ({ quizCorrectCount }) => quizCorrectCount >= 3,
+  },
+  {
+    id: "quiz_7",
+    name: "Quiz Expert",
+    desc: "Answer 7 daily quizzes correctly",
+    emoji: "💡",
+    color: "#7C63D4",
+    check: ({ quizCorrectCount }) => quizCorrectCount >= 7,
+  },
 ];
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────
@@ -739,10 +763,9 @@ function DailyQuiz({ user }) {
     if (answered !== null || saving) return;
     setSaving(true);
     setAnswered(idx);
-    await updateDoc(doc(db, "users", user.uid), {
-      quizDate: todayStr,
-      quizAnswer: idx,
-    });
+    const update = { quizDate: todayStr, quizAnswer: idx };
+    if (idx === q.correct) update.quizCorrectCount = increment(1);
+    await updateDoc(doc(db, "users", user.uid), update);
     setSaving(false);
   };
 
@@ -857,9 +880,81 @@ function WeeklyChart({ activities, dailyGoal, now }) {
   );
 }
 
+// ─── Settings Popup ───────────────────────────────────────────────────────────
+
+function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput]     = useState(dailyGoal);
+  const [saving, setSaving]           = useState(false);
+
+  const handleSignOut = () => { signOut(auth); onClose(); };
+
+  const saveGoal = async () => {
+    const val = parseInt(goalInput);
+    if (!val || val <= 0) return;
+    setSaving(true);
+    await updateDoc(doc(db, "users", user.uid), { dailyGoal: val });
+    onGoalChange(val);
+    setSaving(false);
+    setEditingGoal(false);
+  };
+
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="settings-sheet" onClick={e => e.stopPropagation()}>
+        <div className="settings-sheet-handle" />
+        <div className="settings-sheet-header">
+          <span className="settings-sheet-title">Settings</span>
+          <button className="settings-close-btn" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: "0 20px 8px" }}>
+          <div className="card-block">
+            <div className="pref-row" onClick={() => { setEditingGoal(true); setGoalInput(dailyGoal); }}>
+              <span className="pref-label">Daily goal</span>
+              {editingGoal ? (
+                <div className="goal-edit-row" onClick={e => e.stopPropagation()}>
+                  <input
+                    className="goal-input"
+                    type="number"
+                    value={goalInput}
+                    onChange={e => setGoalInput(e.target.value)}
+                    autoFocus
+                  />
+                  <span className="litres-unit">L</span>
+                  <button className="goal-save-btn" onClick={saveGoal} disabled={saving}>
+                    {saving ? "…" : "Save"}
+                  </button>
+                  <button className="goal-cancel-btn" onClick={() => setEditingGoal(false)}>Cancel</button>
+                </div>
+              ) : (
+                <span className="pref-val">{dailyGoal} L ›</span>
+              )}
+            </div>
+            <div className="pref-row">
+              <span className="pref-label">Notifications</span>
+              <span className="pref-val">On ›</span>
+            </div>
+            <div className="pref-row">
+              <span className="pref-label">Units</span>
+              <span className="pref-val">Litres ›</span>
+            </div>
+            <div className="pref-row">
+              <span className="pref-label">Household size</span>
+              <span className="pref-val">2 people ›</span>
+            </div>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <button className="signout-btn" onClick={handleSignOut}>Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
-function HomeTab({ user, activities, dailyGoal }) {
+function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings }) {
   const now = useLiveDate();
   const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const firstName = user?.displayName?.split(" ")[0] || "there";
@@ -881,10 +976,18 @@ function HomeTab({ user, activities, dailyGoal }) {
           <div className="page-title">{greeting}, {firstName}</div>
           <div className="greeting">{today}</div>
         </div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          <button className="header-icon-btn" onClick={onOpenSettings} aria-label="Settings">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <Gauge used={todayTotal} goal={dailyGoal} streak={streak} />
@@ -950,25 +1053,10 @@ function HomeTab({ user, activities, dailyGoal }) {
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
-function ProfileTab({ user, dailyGoal, onGoalChange, earnedBadgeIds }) {
-  const [editingGoal, setEditingGoal] = useState(false);
-  const [goalInput, setGoalInput]     = useState(dailyGoal);
-  const [saving, setSaving]           = useState(false);
-
-  const handleSignOut = () => signOut(auth);
+function ProfileTab({ user, earnedBadgeIds }) {
   const initials = user?.displayName
     ? user.displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
-
-  const saveGoal = async () => {
-    const val = parseInt(goalInput);
-    if (!val || val <= 0) return;
-    setSaving(true);
-    await updateDoc(doc(db, "users", user.uid), { dailyGoal: val });
-    onGoalChange(val);
-    setSaving(false);
-    setEditingGoal(false);
-  };
 
   const earnedCount = earnedBadgeIds.length;
 
@@ -1006,49 +1094,6 @@ function ProfileTab({ user, dailyGoal, onGoalChange, earnedBadgeIds }) {
           })}
         </div>
       </div>
-
-      <div className="section">
-        <div className="section-label">Settings</div>
-        <div className="card-block">
-          <div className="pref-row" onClick={() => { setEditingGoal(true); setGoalInput(dailyGoal); }}>
-            <span className="pref-label">Daily goal</span>
-            {editingGoal ? (
-              <div className="goal-edit-row" onClick={e => e.stopPropagation()}>
-                <input
-                  className="goal-input"
-                  type="number"
-                  value={goalInput}
-                  onChange={e => setGoalInput(e.target.value)}
-                  autoFocus
-                />
-                <span className="litres-unit">L</span>
-                <button className="goal-save-btn" onClick={saveGoal} disabled={saving}>
-                  {saving ? "…" : "Save"}
-                </button>
-                <button className="goal-cancel-btn" onClick={() => setEditingGoal(false)}>Cancel</button>
-              </div>
-            ) : (
-              <span className="pref-val">{dailyGoal} L ›</span>
-            )}
-          </div>
-          <div className="pref-row">
-            <span className="pref-label">Notifications</span>
-            <span className="pref-val">On ›</span>
-          </div>
-          <div className="pref-row">
-            <span className="pref-label">Units</span>
-            <span className="pref-val">Litres ›</span>
-          </div>
-          <div className="pref-row">
-            <span className="pref-label">Household size</span>
-            <span className="pref-val">2 people ›</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="section">
-        <button className="signout-btn" onClick={handleSignOut}>Sign out</button>
-      </div>
     </div>
   );
 }
@@ -1070,6 +1115,8 @@ export default function App() {
   const [dailyGoal,            setDailyGoal]            = useState(150);
   const [activities,           setActivities]           = useState([]);
   const [challengesCompleted,  setChallengesCompleted]  = useState(0);
+  const [quizCorrectCount,     setQuizCorrectCount]     = useState(0);
+  const [showSettings,         setShowSettings]         = useState(false);
 
   // Auth + initial profile load
   useEffect(() => {
@@ -1096,8 +1143,9 @@ export default function App() {
     const unsub = onSnapshot(doc(db, "users", user.uid), snap => {
       if (!snap.exists()) return;
       const data = snap.data();
-      if (data.dailyGoal)            setDailyGoal(data.dailyGoal);
-      if (data.challengesCompleted != null) setChallengesCompleted(data.challengesCompleted);
+      if (data.dailyGoal)                    setDailyGoal(data.dailyGoal);
+      if (data.challengesCompleted != null)  setChallengesCompleted(data.challengesCompleted);
+      if (data.quizCorrectCount != null)     setQuizCorrectCount(data.quizCorrectCount);
     });
     return unsub;
   }, [user]);
@@ -1119,9 +1167,9 @@ export default function App() {
   const earnedBadgeIds = useMemo(() => {
     const streak = computeStreak(activities, dailyGoal);
     return BADGE_DEFS
-      .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted }))
+      .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted, quizCorrectCount }))
       .map(b => b.id);
-  }, [activities, dailyGoal, challengesCompleted]);
+  }, [activities, dailyGoal, challengesCompleted, quizCorrectCount]);
 
   if (user === undefined) {
     return (
@@ -1137,10 +1185,10 @@ export default function App() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} />;
+      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} />;
       case "activities": return <ActivitiesTab currentUser={user} />;
       case "community":  return <CommunityTab currentUser={user} />;
-      case "profile":    return <ProfileTab user={user} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} earnedBadgeIds={earnedBadgeIds} />;
+      case "profile":    return <ProfileTab user={user} earnedBadgeIds={earnedBadgeIds} />;
       default:           return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} />;
     }
   };
@@ -1157,6 +1205,14 @@ export default function App() {
             </button>
           ))}
         </div>
+        {showSettings && (
+          <SettingsPopup
+            user={user}
+            dailyGoal={dailyGoal}
+            onGoalChange={setDailyGoal}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
       </div>
     </div>
   );

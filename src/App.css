@@ -1102,3 +1102,80 @@ input, textarea, select { font-size: 16px; }
   font-family: var(--font);
   cursor: pointer;
 }
+
+/* ─── Header icon button ─────────────────────────────────────────────────── */
+
+.header-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon);
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  border-radius: 6px;
+}
+.header-icon-btn:hover { opacity: 1; }
+
+/* ─── Settings Popup ─────────────────────────────────────────────────────── */
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  border-radius: inherit;
+}
+
+.settings-sheet {
+  width: 100%;
+  background: var(--bg);
+  border-radius: 24px 24px 0 0;
+  padding-bottom: 32px;
+  max-height: 85%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.settings-sheet::-webkit-scrollbar { display: none; }
+
+.settings-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+
+.settings-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+}
+
+.settings-sheet-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg2);
+  border: none;
+  font-size: 14px;
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+.settings-close-btn:hover { opacity: 0.7; }
