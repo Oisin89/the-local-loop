@@ -1239,3 +1239,84 @@ input, textarea, select { font-size: 16px; }
   margin-top: 2px;
   font-family: var(--mono);
 }
+
+/* ─── Community Impact Board ─────────────────────────────────────────────── */
+
+.impact-card {
+  background: var(--bg2);
+  border-radius: 16px;
+  padding: 16px 16px 18px;
+  border: 0.5px solid var(--border);
+}
+
+.impact-hero {
+  text-align: center;
+  padding: 6px 0 4px;
+}
+
+.impact-hero-number {
+  font-size: 38px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: #27AE60;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+}
+
+.impact-hero-unit {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.impact-hero-equiv {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 3px;
+  opacity: 0.7;
+}
+
+.impact-divider {
+  height: 0.5px;
+  background: var(--border);
+  margin: 14px 0;
+}
+
+.impact-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+
+.impact-stat {
+  text-align: center;
+  padding: 4px 0;
+}
+
+.impact-stat-value {
+  font-size: 17px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.impact-stat-lbl {
+  font-size: 10px;
+  color: var(--text2);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.impact-bar-track {
+  height: 7px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.impact-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.7s ease;
+}

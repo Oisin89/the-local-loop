@@ -1180,7 +1180,7 @@ function ProfileTab({ user, earnedBadgeIds }) {
 const TABS = [
   { id: "home",       label: "Home",       Icon: IconHome      },
   { id: "activities", label: "Activities", Icon: IconActivity  },
-  { id: "community",  label: "Community",  Icon: IconCommunity },
+  { id: "community",  label: "Friends",    Icon: IconCommunity },
   { id: "profile",    label: "Profile",    Icon: IconProfile   },
 ];
 

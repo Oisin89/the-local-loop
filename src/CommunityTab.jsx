@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  collection, query, where, getDocs, addDoc,
+  collection, collectionGroup, query, where, getDocs, addDoc,
   deleteDoc, doc, onSnapshot, getDoc, setDoc, serverTimestamp
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -42,6 +42,126 @@ const AVATAR_COLORS = [
 function getAvatarColor(uid) {
   const idx = uid ? uid.charCodeAt(0) % AVATAR_COLORS.length : 0;
   return AVATAR_COLORS[idx];
+}
+
+// ─── Community Impact Board ───────────────────────────────────────────────────
+
+function CommunityImpactBoard() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const monthName = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+  useEffect(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const run = async () => {
+      try {
+        const snap = await getDocs(
+          query(collectionGroup(db, "activities"), where("createdAt", ">=", monthStart))
+        );
+        const totalLitres = Math.round(snap.docs.reduce((s, d) => s + (d.data().litres || 0), 0));
+        const userIds = new Set(snap.docs.map(d => d.ref.parent.parent.id));
+        const activeUsers = userIds.size;
+        const daysElapsed = Math.max(1, now.getDate());
+        const ukAvgTotal = 150 * activeUsers * daysElapsed;
+        const savedVsUK = Math.max(0, ukAvgTotal - totalLitres);
+        const avgPerDay = activeUsers > 0 ? Math.round(totalLitres / (activeUsers * daysElapsed)) : 0;
+        const pctVsUK = avgPerDay > 0 ? Math.round(((150 - avgPerDay) / 150) * 100) : null;
+        setStats({ totalLitres, activeUsers, savedVsUK, avgPerDay, pctVsUK });
+      } catch (e) {
+        console.error("Impact board error:", e);
+      }
+      setLoading(false);
+    };
+
+    run();
+  }, []);
+
+  const toComparison = (litres) => {
+    if (litres <= 0) return null;
+    if (litres >= 800) return `${Math.round(litres / 800)} bathtubs`;
+    return `${Math.round(litres / 40)} showers`;
+  };
+
+  return (
+    <div className="section">
+      <div className="section-label">Community impact · {monthName}</div>
+      <div className="impact-card">
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text2)", fontSize: 13 }}>
+            Calculating community data…
+          </div>
+        ) : stats && stats.activeUsers > 0 ? (
+          <>
+            {/* Hero number */}
+            <div className="impact-hero">
+              <div className="impact-hero-number">
+                {stats.savedVsUK > 0
+                  ? stats.savedVsUK.toLocaleString("en-GB")
+                  : stats.totalLitres.toLocaleString("en-GB")}
+              </div>
+              <div className="impact-hero-unit">
+                {stats.savedVsUK > 0 ? "litres saved vs UK average" : "litres logged this month"}
+              </div>
+              {stats.savedVsUK > 0 && toComparison(stats.savedVsUK) && (
+                <div className="impact-hero-equiv">
+                  ≈ {toComparison(stats.savedVsUK)} worth of water
+                </div>
+              )}
+            </div>
+
+            <div className="impact-divider" />
+
+            {/* Three stats */}
+            <div className="impact-stats-row">
+              <div className="impact-stat">
+                <div className="impact-stat-value">{stats.activeUsers}</div>
+                <div className="impact-stat-lbl">members active</div>
+              </div>
+              <div className="impact-stat">
+                <div className="impact-stat-value">{stats.avgPerDay} L</div>
+                <div className="impact-stat-lbl">avg / person / day</div>
+              </div>
+              <div className="impact-stat">
+                <div className="impact-stat-value" style={{
+                  color: stats.pctVsUK > 0 ? "#27AE60" : stats.pctVsUK < 0 ? "#E24B4A" : "var(--text)"
+                }}>
+                  {stats.pctVsUK !== null
+                    ? `${stats.pctVsUK > 0 ? "-" : "+"}${Math.abs(stats.pctVsUK)}%`
+                    : "—"}
+                </div>
+                <div className="impact-stat-lbl">vs UK avg</div>
+              </div>
+            </div>
+
+            {/* Progress bar: community avg vs 150 L UK avg */}
+            {stats.avgPerDay > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, color: "var(--text2)" }}>
+                    Community avg {stats.avgPerDay} L/day
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--text2)" }}>UK avg 150 L</span>
+                </div>
+                <div className="impact-bar-track">
+                  <div className="impact-bar-fill" style={{
+                    width: `${Math.min((stats.avgPerDay / 150) * 100, 100)}%`,
+                    background: stats.avgPerDay <= 150 ? "#27AE60" : "#E24B4A",
+                  }} />
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "16px 0", color: "var(--text2)", fontSize: 13 }}>
+            No community data yet this month. Start logging to contribute!
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── Leaderboard hook ─────────────────────────────────────────────────────────
@@ -436,11 +556,14 @@ export default function CommunityTab({ currentUser }) {
   return (
     <div className="page">
       <div className="page-header">
-        <div className="page-title">Community</div>
+        <div className="page-title">Friends</div>
         {incoming.length > 0 && (
           <div className="notif-badge">{incoming.length}</div>
         )}
       </div>
+
+      {/* ── Community Impact Board ── */}
+      <CommunityImpactBoard />
 
       {/* ── Monthly usage leaderboard ── */}
       <LeaderboardSection
