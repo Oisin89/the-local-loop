@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   doc, setDoc, getDoc, updateDoc,
-  collection, query, orderBy, onSnapshot,
-  serverTimestamp, increment
+  collection, query, orderBy, limit, onSnapshot,
+  serverTimestamp, increment, writeBatch
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import LoginScreen from "./LoginScreen";
@@ -880,6 +880,72 @@ function WeeklyChart({ activities, dailyGoal, now }) {
   );
 }
 
+// ─── Notifications Popup ──────────────────────────────────────────────────────
+
+function formatAge(ts) {
+  if (!ts) return "";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return "Yesterday";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function NotificationsPopup({ user, notifications, onClose }) {
+  useEffect(() => {
+    if (!user || notifications.length === 0) return;
+    const unread = notifications.filter(n => !n.read);
+    if (unread.length === 0) return;
+    const batch = writeBatch(db);
+    unread.forEach(n => {
+      batch.update(doc(db, "users", user.uid, "notifications", n.id), { read: true });
+    });
+    batch.commit();
+  }, []);
+
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="settings-sheet" onClick={e => e.stopPropagation()}>
+        <div className="settings-sheet-handle" />
+        <div className="settings-sheet-header">
+          <span className="settings-sheet-title">Notifications</span>
+          <button className="settings-close-btn" onClick={onClose}>✕</button>
+        </div>
+        {notifications.length === 0 ? (
+          <div className="empty-state" style={{ padding: "24px 20px" }}>
+            <p>No notifications yet.</p>
+            <p style={{ marginTop: 6 }}>Earn badges and connect with friends to see updates here.</p>
+          </div>
+        ) : (
+          <div style={{ padding: "0 20px 8px" }}>
+            <div className="card-block">
+              {notifications.map((n, i) => (
+                <div
+                  key={n.id}
+                  className="notif-item"
+                  style={{ borderBottom: i < notifications.length - 1 ? "0.5px solid var(--border)" : "none" }}
+                >
+                  <span className="notif-item-emoji">{n.emoji || "🔔"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="notif-item-title">{n.title}</div>
+                    {n.body && <div className="notif-item-body">{n.body}</div>}
+                  </div>
+                  <span className="notif-item-time">{formatAge(n.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings Popup ───────────────────────────────────────────────────────────
 
 function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
@@ -954,7 +1020,7 @@ function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
-function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings }) {
+function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, unreadCount = 0, onOpenNotifications }) {
   const now = useLiveDate();
   const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const firstName = user?.displayName?.split(" ")[0] || "there";
@@ -977,10 +1043,15 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings }) 
           <div className="greeting">{today}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
+          <button className="header-icon-btn" onClick={onOpenNotifications} aria-label="Notifications" style={{ position: "relative" }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+            )}
+          </button>
           <button className="header-icon-btn" onClick={onOpenSettings} aria-label="Settings">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--icon)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
@@ -1047,6 +1118,12 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings }) 
       <PersonalBest activities={activities} dailyGoal={dailyGoal} />
 
       <WeeklyChart activities={activities} dailyGoal={dailyGoal} now={now} />
+
+      <div style={{ padding: "4px 20px 28px", textAlign: "center" }}>
+        <p style={{ fontSize: 11, color: "var(--text2)", lineHeight: 1.6, opacity: 0.65 }}>
+          😊 App designed by Jesica Balakumar for the Tolworth Hook Community Project
+        </p>
+      </div>
     </div>
   );
 }
@@ -1117,6 +1194,8 @@ export default function App() {
   const [challengesCompleted,  setChallengesCompleted]  = useState(0);
   const [quizCorrectCount,     setQuizCorrectCount]     = useState(0);
   const [showSettings,         setShowSettings]         = useState(false);
+  const [notifications,        setNotifications]        = useState([]);
+  const [showNotifications,    setShowNotifications]    = useState(false);
 
   // Auth + initial profile load
   useEffect(() => {
@@ -1163,6 +1242,20 @@ export default function App() {
     return unsub;
   }, [user]);
 
+  // Notifications listener
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "users", user.uid, "notifications"),
+      orderBy("createdAt", "desc"),
+      limit(30)
+    );
+    const unsub = onSnapshot(q, snap => {
+      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [user]);
+
   // Compute earned badges reactively
   const earnedBadgeIds = useMemo(() => {
     const streak = computeStreak(activities, dailyGoal);
@@ -1170,6 +1263,36 @@ export default function App() {
       .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted, quizCorrectCount }))
       .map(b => b.id);
   }, [activities, dailyGoal, challengesCompleted, quizCorrectCount]);
+
+  // Badge notification generator — runs after earnedBadgeIds is computed
+  useEffect(() => {
+    if (!user || earnedBadgeIds.length === 0) return;
+    const checkAndNotify = async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const alreadyNotified = new Set(snap.data()?.notifiedBadges || []);
+      const toNotify = earnedBadgeIds.filter(id => !alreadyNotified.has(id));
+      if (toNotify.length === 0) return;
+      const batch = writeBatch(db);
+      toNotify.forEach(badgeId => {
+        const badge = BADGE_DEFS.find(b => b.id === badgeId);
+        if (!badge) return;
+        const notifRef = doc(collection(db, "users", user.uid, "notifications"));
+        batch.set(notifRef, {
+          type: "badge",
+          title: `${badge.emoji} ${badge.name} badge earned!`,
+          body: badge.desc,
+          emoji: badge.emoji,
+          read: false,
+          createdAt: serverTimestamp(),
+        });
+      });
+      batch.update(doc(db, "users", user.uid), {
+        notifiedBadges: [...alreadyNotified, ...toNotify],
+      });
+      await batch.commit();
+    };
+    checkAndNotify();
+  }, [earnedBadgeIds, user]);
 
   if (user === undefined) {
     return (
@@ -1185,7 +1308,7 @@ export default function App() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} />;
+      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} unreadCount={notifications.filter(n => !n.read).length} onOpenNotifications={() => setShowNotifications(true)} />;
       case "activities": return <ActivitiesTab currentUser={user} />;
       case "community":  return <CommunityTab currentUser={user} />;
       case "profile":    return <ProfileTab user={user} earnedBadgeIds={earnedBadgeIds} />;
@@ -1211,6 +1334,13 @@ export default function App() {
             dailyGoal={dailyGoal}
             onGoalChange={setDailyGoal}
             onClose={() => setShowSettings(false)}
+          />
+        )}
+        {showNotifications && (
+          <NotificationsPopup
+            user={user}
+            notifications={notifications}
+            onClose={() => setShowNotifications(false)}
           />
         )}
       </div>
