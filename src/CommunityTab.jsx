@@ -396,6 +396,15 @@ export default function CommunityTab({ currentUser }) {
         createdAt: serverTimestamp(),
       });
       await deleteDoc(doc(db, "friend_requests", request.docId));
+      // Notify the person who sent the request that it was accepted
+      await addDoc(collection(db, "users", request.fromUid, "notifications"), {
+        type: "friend_accepted",
+        title: "Friend request accepted! 🤝",
+        body: `${currentUser.displayName || "Someone"} accepted your friend request.`,
+        emoji: "🤝",
+        read: false,
+        createdAt: serverTimestamp(),
+      });
     } catch (err) { console.error(err); }
   };
 
