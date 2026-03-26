@@ -276,16 +276,16 @@ function Gauge({ used, goal, streak = 0 }) {
     statusMsg = "Nothing logged yet today";
     statusColor = "var(--text2)";
   } else if (rawPct < 50) {
-    statusMsg = `${remaining} L left — great start`;
+    statusMsg = `${remaining} L left. Great start!`;
     statusColor = "#27AE60";
   } else if (rawPct < 80) {
     statusMsg = `${remaining} L left today`;
     statusColor = "var(--accent)";
   } else if (rawPct < 100) {
-    statusMsg = `Only ${remaining} L left — slow down!`;
+    statusMsg = `Only ${remaining} L left, slow down!`;
     statusColor = "#E67E22";
   } else if (rawPct === 100) {
-    statusMsg = "Daily goal hit — well done!";
+    statusMsg = "Daily goal hit. Well done!";
     statusColor = "#27AE60";
   } else {
     statusMsg = `${used - goal} L over today's goal`;
@@ -436,17 +436,17 @@ function QuickLog({ user }) {
 // ─── Conservation Tips ────────────────────────────────────────────────────────
 
 const TIPS = [
-  "Turn off the tap while brushing your teeth — you can save up to 6 litres per minute.",
+  "Turn off the tap while brushing your teeth; you can save up to 6 litres per minute.",
   "A 4-minute shower uses about 32 litres. Try cutting one minute to save 8 litres daily.",
-  "Fix a dripping tap — a slow drip can waste over 5,000 litres a year.",
-  "Run your dishwasher only when full — it uses the same water regardless of load size.",
+  "Fix a dripping tap. A slow drip can waste over 5,000 litres a year.",
+  "Run your dishwasher only when full; it uses the same water regardless of load size.",
   "Water your garden in the early morning to reduce evaporation by up to 25%.",
   "A full bath uses around 80 litres. Switching to a shower can halve that.",
-  "Collect rainwater for watering plants — a water butt can hold up to 200 litres.",
-  "Only boil as much water as you need — it saves energy and water.",
+  "Collect rainwater for watering plants; a water butt can hold up to 200 litres.",
+  "Only boil as much water as you need; it saves energy and water.",
   "Use a bowl when washing vegetables instead of running the tap.",
-  "Check for hidden leaks — a simple dye tablet in your toilet cistern reveals silent leaks.",
-  "Washing a full load of laundry uses the same water as a half load — wait until it's full.",
+  "Check for hidden leaks; a simple dye tablet in your toilet cistern reveals silent leaks.",
+  "Washing a full load of laundry uses the same water as a half load, so wait until it's full.",
   "A hosepipe uses up to 1,000 litres per hour. Use a watering can instead.",
 ];
 
@@ -631,7 +631,7 @@ function DailyChallenge({ user }) {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              Done — nice work!
+              Done. Nice work!
             </>
           ) : saving ? "Saving…" : "Mark as done"}
         </button>
@@ -684,7 +684,7 @@ function PersonalBest({ activities, dailyGoal }) {
           <span className="pb-icon">🏅</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="pb-value">{bestTotal} L</div>
-            <div className="pb-lbl">Lowest day — {dateLabel}</div>
+            <div className="pb-lbl">Lowest day, {dateLabel}</div>
           </div>
           {savedVsGoal > 0 && (
             <span className="pb-badge">{savedVsGoal} L under goal</span>
@@ -728,19 +728,19 @@ function WeatherNudge() {
           setTemp(roundT);
           let msg, ic;
           if (p > 2 || (code >= 51 && code <= 82)) {
-            msg = "It's raining — put a water butt out and collect it for the garden.";
+            msg = "It's raining. Put a water butt out and collect it for the garden.";
             ic = "🌧";
           } else if (roundT >= 26) {
-            msg = `It's ${roundT}° today — water your garden after 7pm to cut evaporation by up to 25%.`;
+            msg = `It's ${roundT}° today. Water your garden after 7pm to cut evaporation by up to 25%.`;
             ic = "☀️";
           } else if (roundT >= 18) {
-            msg = `Nice ${roundT}° today — check garden soil moisture before reaching for the hose.`;
+            msg = `Nice ${roundT}° today. Check garden soil moisture before reaching for the hose.`;
             ic = "🌤";
           } else if (roundT < 8) {
-            msg = `Cold at ${roundT}° — plants need significantly less water in cold weather.`;
+            msg = `Cold at ${roundT}°. Plants need significantly less water in cold weather.`;
             ic = "🧊";
           } else {
-            msg = `Mild ${roundT}° today — a good time to check for dripping taps or leaky fittings.`;
+            msg = `Mild ${roundT}° today. A good time to check for dripping taps or leaky fittings.`;
             ic = "🌡";
           }
           setNudge(msg);
@@ -772,31 +772,31 @@ function WeatherNudge() {
 const QUIZ_QUESTIONS = [
   { q: "How many litres does the average UK person use per day?",
     options: ["80 L", "150 L", "230 L"], correct: 1,
-    fact: "The UK average is about 150 litres per person per day — equivalent to roughly 6 full bathtubs." },
+    fact: "The UK average is about 150 litres per person per day, equivalent to roughly 6 full bathtubs." },
   { q: "How much water does a typical 5-minute shower use?",
     options: ["10 L", "40 L", "75 L"], correct: 1,
     fact: "A standard shower head uses around 8 litres per minute, so 5 minutes = ~40 litres." },
   { q: "How much does a full bath typically use?",
     options: ["40 L", "80 L", "140 L"], correct: 1,
-    fact: "A full bath uses around 80 litres — about twice as much as a 5-minute shower." },
+    fact: "A full bath uses around 80 litres, about twice as much as a 5-minute shower." },
   { q: "How much water does a hosepipe use per hour?",
     options: ["200 L", "600 L", "1,000 L"], correct: 2,
-    fact: "A hosepipe uses up to 1,000 litres per hour — the same as six days of drinking water for one person." },
+    fact: "A hosepipe uses up to 1,000 litres per hour, the same as six days of drinking water for one person." },
   { q: "What percentage of Earth's water is available freshwater?",
     options: ["0.3%", "3%", "10%"], correct: 0,
-    fact: "Only about 0.3% of all water on Earth is accessible freshwater — the rest is saltwater or locked in ice." },
+    fact: "Only about 0.3% of all water on Earth is accessible freshwater; the rest is saltwater or locked in ice." },
   { q: "How much water does a dripping tap waste per year?",
     options: ["500 L", "5,500 L", "15,000 L"], correct: 1,
-    fact: "A slow drip can waste over 5,500 litres a year — that's enough for 68 full baths." },
+    fact: "A slow drip can waste over 5,500 litres a year, enough for 68 full baths." },
   { q: "How many litres does a modern low-flush toilet use per flush?",
     options: ["3–4 L", "9–12 L", "15–20 L"], correct: 0,
     fact: "Modern dual-flush toilets use just 3–4 litres on a half flush, down from 13 litres for older models." },
   { q: "How much water does a washing machine use per cycle?",
     options: ["20 L", "50 L", "100 L"], correct: 1,
-    fact: "Most modern washing machines use around 50 litres per cycle — always run full loads to make it count." },
+    fact: "Most modern washing machines use around 50 litres per cycle. Always run full loads to make it count." },
   { q: "How many litres does a running tap produce per minute?",
     options: ["2 L", "6 L", "12 L"], correct: 1,
-    fact: "A standard tap runs at about 6 litres per minute — leaving it on while brushing wastes up to 12 litres." },
+    fact: "A standard tap runs at about 6 litres per minute; leaving it on while brushing wastes up to 12 litres." },
   { q: "How much water is needed to produce 1 kg of beef?",
     options: ["500 L", "5,000 L", "15,000 L"], correct: 2,
     fact: "It takes roughly 15,000 litres of water to produce just 1 kg of beef, mostly for growing animal feed." },
@@ -805,13 +805,13 @@ const QUIZ_QUESTIONS = [
     fact: "Watering early morning reduces evaporation by up to 25% compared to watering during the heat of the day." },
   { q: "How many litres does a full dishwasher cycle typically use?",
     options: ["6 L", "12 L", "25 L"], correct: 1,
-    fact: "A full dishwasher cycle uses around 12 litres — far less than washing the same dishes by hand (up to 60 L)." },
+    fact: "A full dishwasher cycle uses around 12 litres, far less than washing the same dishes by hand (up to 60 L)." },
   { q: "How much of the human body is made up of water?",
     options: ["40%", "60%", "80%"], correct: 1,
     fact: "About 60% of the human body is water. Staying well hydrated is essential for basic body functions." },
   { q: "Which country has the highest per-person daily water use?",
     options: ["Australia", "United States", "United Kingdom"], correct: 1,
-    fact: "The US averages around 380 litres per person per day — more than double the UK average." },
+    fact: "The US averages around 380 litres per person per day, more than double the UK average." },
 ];
 
 function DailyQuiz({ user }) {
@@ -877,7 +877,7 @@ function DailyQuiz({ user }) {
         </div>
         {isRevealed && (
           <p className="quiz-fact">
-            {answered === q.correct ? "✓ Correct! " : "✗ Not quite — "}
+            {answered === q.correct ? "✓ Correct! " : "✗ Not quite: "}
             {q.fact}
           </p>
         )}
@@ -1115,7 +1115,7 @@ function calcAuditResult(ans) {
     const saving = Math.round(garden * 0.25);
     recs.push({
       emoji: "🌱",
-      text: `Watering before 8am or after 7pm cuts evaporation by up to 25% — saving ~${saving} L/day.`,
+      text: `Watering before 8am or after 7pm cuts evaporation by up to 25%, saving ~${saving} L/day.`,
       saving,
     });
   }
@@ -1220,8 +1220,8 @@ function HouseholdAuditPopup({ user, onComplete }) {
               </div>
               <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 8 }}>
                 {result.perPersonDay <= 150
-                  ? `You're ${150 - result.perPersonDay} L/day below the UK average — great start! 🎉`
-                  : `You're ${result.perPersonDay - 150} L/day above the UK average — room to improve.`}
+                  ? `You're ${150 - result.perPersonDay} L/day below the UK average. Great start! 🎉`
+                  : `You're ${result.perPersonDay - 150} L/day above the UK average. There is room to improve.`}
               </div>
             </div>
 
@@ -1387,7 +1387,7 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
                   Discover your water footprint
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>
-                  5 quick questions — get a personalised estimate
+                  5 quick questions to get a personalised estimate
                 </div>
               </div>
             </div>
@@ -1443,7 +1443,7 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
             <div className="stat-value" style={{
               color: vsLastWeek === null ? "var(--text2)" : vsLastWeek <= 0 ? "#27AE60" : "#E24B4A"
             }}>
-              {vsLastWeek === null ? "—" : `${vsLastWeek > 0 ? "+" : ""}${vsLastWeek}%`}
+              {vsLastWeek === null ? "n/a" : `${vsLastWeek > 0 ? "+" : ""}${vsLastWeek}%`}
             </div>
             <div className="stat-lbl">vs last week</div>
           </div>

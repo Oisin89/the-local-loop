@@ -137,7 +137,7 @@ function CommunityImpactBoard() {
                 }}>
                   {stats.pctVsUK !== null
                     ? `${stats.pctVsUK > 0 ? "-" : "+"}${Math.abs(stats.pctVsUK)}%`
-                    : "—"}
+                    : "n/a"}
                 </div>
                 <div className="impact-stat-lbl">vs UK avg</div>
               </div>
@@ -182,8 +182,8 @@ function CommunityImpactBoard() {
                   </div>
                   <div className="community-target-sub">
                     {pct >= 100
-                      ? "🎉 Community target reached this month — amazing work!"
-                      : `${pct}% there — ${(MONTHLY_TARGET - saved).toLocaleString("en-GB")} L to go this month`}
+                      ? "🎉 Community target reached this month. Amazing work!"
+                      : `${pct}% there; ${(MONTHLY_TARGET - saved).toLocaleString("en-GB")} L to go this month`}
                   </div>
                 </div>
               );
@@ -508,13 +508,13 @@ function ChallengeCard({ challenge, currentUser, onAccept, onDecline }) {
   if (isPast && myTotal !== null && theirTotal !== null) {
     const minDays = Math.min(myDays, /* theirDays */ myDays); // conservative
     if (minDays < 3) {
-      resultText = "Insufficient data — at least 3 days of logging needed from both sides.";
+      resultText = "Insufficient data. Both users need at least 3 days of logging.";
     } else if (myTotal < theirTotal) {
       winner = "me";
       resultText = `🎉 You win! You used ${myTotal} L vs their ${theirTotal} L.`;
     } else if (theirTotal < myTotal) {
       winner = "them";
-      resultText = `${shortName(theirName)} wins — they used ${theirTotal} L vs your ${myTotal} L. Keep going!`;
+      resultText = `${shortName(theirName)} wins. They used ${theirTotal} L vs your ${myTotal} L. Keep going!`;
     } else {
       winner = "draw";
       resultText = `🤝 It's a draw! Both used ${myTotal} L. Great effort from both sides.`;
@@ -896,6 +896,25 @@ export default function CommunityTab({ currentUser }) {
       {/* ── Community Impact Board ── */}
       <CommunityImpactBoard />
 
+      {/* ── Active challenge (pinned below impact board) ── */}
+      {(() => {
+        const active = challenges.find(c =>
+          c.status === "active" &&
+          (c.challengerId === currentUser.uid || c.opponentId === currentUser.uid)
+        );
+        if (!active) return null;
+        return (
+          <div className="section">
+            <ChallengeCard
+              challenge={active}
+              currentUser={currentUser}
+              onAccept={acceptChallenge}
+              onDecline={declineChallenge}
+            />
+          </div>
+        );
+      })()}
+
       {/* ── Monthly usage leaderboard ── */}
       <LeaderboardSection
         rankings={rankings}
@@ -942,7 +961,7 @@ export default function CommunityTab({ currentUser }) {
                       color: p.isMe ? "var(--accent)" : p.streak > 0 ? "#C9A30A" : "var(--text2)",
                       fontWeight: p.isMe || p.streak > 0 ? 600 : 400,
                     }}>
-                      {p.streak > 0 ? `🔥 ${p.streak}d` : "—"}
+                      {p.streak > 0 ? `🔥 ${p.streak}d` : "0d"}
                     </span>
                   </div>
                 );
@@ -991,8 +1010,8 @@ export default function CommunityTab({ currentUser }) {
                 const chalBtnDisabled = existingChallenge?.status === "active" || existingChallenge?.status === "pending";
                 const chalBtnClass = `chal-btn${existingChallenge?.status === "pending" ? " pending" : existingChallenge?.status === "active" ? " active" : ""}`;
                 const chalBtnTitle =
-                  existingChallenge?.status === "active"  ? "Active challenge — tap to view" :
-                  existingChallenge?.status === "pending" ? "Challenge pending — tap to view" :
+                  existingChallenge?.status === "active"  ? "Active challenge. Tap to view." :
+                  existingChallenge?.status === "pending" ? "Challenge pending. Tap to view." :
                   "Challenge to a 7-day water saving contest";
                 return (
                   <div className="activity-item" key={f.uid} style={{ alignItems: "center" }}>
