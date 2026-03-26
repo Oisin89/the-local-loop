@@ -261,6 +261,161 @@ function waterEquivalent(litres) {
   return `${n} toilet flush${n !== 1 ? "es" : ""}`;
 }
 
+// ─── WaterDropMascot ──────────────────────────────────────────────────────────
+// mood: 'idle' | 'exercising' | 'drinking' | 'reading' | 'celebrating' | 'over'
+function WaterDropMascot({ mood = 'idle' }) {
+  const isOver = mood === 'over';
+  const bodyColor   = isOver ? '#E24B4A' : '#378ADD';
+  const bodyLight   = isOver ? '#F07070' : '#68B8FF';
+  const strokeColor = isOver ? '#c0392b' : '#1a5fa8';
+
+  // Mouth path per mood
+  const mouthD =
+    mood === 'over'        ? 'M 20 59 Q 26 54 32 59' :
+    mood === 'celebrating' ? 'M 17 56 Q 26 64 35 56' :
+                             'M 20 57 Q 26 62 32 57';
+
+  // Base arm rotations for static-posed moods
+  // (animated moods get overridden by their CSS animations)
+  const armLBase =
+    mood === 'celebrating' ? -90 :
+    mood === 'over'        ? -15 : 0;
+
+  const armRBase =
+    mood === 'celebrating' ? 90  :
+    mood === 'drinking'    ? 72  :
+    mood === 'over'        ? 15  : 0;
+
+  // Per-element animation strings
+  const bodyAnim =
+    mood === 'exercising'  ? 'mascot-bounce 0.65s ease-in-out infinite' :
+    mood === 'celebrating' ? 'mascot-jump 0.5s ease-in-out infinite' :
+    mood === 'over'        ? 'mascot-worry 0.2s ease-in-out infinite' :
+    mood === 'reading'     ? 'mascot-bob 3.6s ease-in-out infinite' :
+                             'mascot-bob 2.4s ease-in-out infinite';
+
+  const armLAnim =
+    mood === 'exercising'  ? 'mascot-jacks-l 0.65s ease-in-out infinite' :
+    mood === 'celebrating' ? 'mascot-celeb-l 0.5s ease-in-out infinite' : '';
+
+  const armRAnim =
+    mood === 'exercising'  ? 'mascot-jacks-r 0.65s ease-in-out infinite' :
+    mood === 'celebrating' ? 'mascot-celeb-r 0.5s ease-in-out infinite 0.1s' :
+    mood === 'drinking'    ? 'mascot-drink 2s ease-in-out infinite' : '';
+
+  return (
+    <svg
+      width="52" height="70" viewBox="0 0 52 70"
+      style={{ overflow: 'visible', flexShrink: 0, display: 'block' }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="mgGrad" x1="0.3" y1="0" x2="0.8" y2="1">
+          <stop offset="0%" stopColor={bodyLight} />
+          <stop offset="100%" stopColor={bodyColor} />
+        </linearGradient>
+      </defs>
+
+      {/* Whole-body animation wrapper */}
+      <g style={{ animation: bodyAnim, transformOrigin: '26px 36px' }}>
+
+        {/* ── Left arm (behind body) ── */}
+        <g transform="translate(7,47)">
+          <g style={{
+            transformOrigin: '0px 0px',
+            transform: `rotate(${armLBase}deg)`,
+            animation: armLAnim || undefined,
+          }}>
+            <path d="M 0 0 Q -3 7 -1 14"
+              stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
+          </g>
+        </g>
+
+        {/* ── Body ── */}
+        <path
+          d="M 26 2 C 42 16, 46 36, 46 50 A 20 20 0 0 1 6 50 C 6 36, 10 16, 26 2 Z"
+          fill="url(#mgGrad)"
+        />
+        {/* Gloss highlight */}
+        <ellipse cx="33" cy="16" rx="5" ry="7"
+          fill="rgba(255,255,255,0.18)"
+          transform="rotate(-22 33 16)"
+        />
+
+        {/* ── Right arm (in front of body) ── */}
+        <g transform="translate(45,47)">
+          <g style={{
+            transformOrigin: '0px 0px',
+            transform: `rotate(${armRBase}deg)`,
+            animation: armRAnim || undefined,
+          }}>
+            <path d="M 0 0 Q 3 7 1 14"
+              stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
+            {/* Cup — only shown in drinking mode */}
+            {mood === 'drinking' && (
+              <g transform="translate(1,14)">
+                <rect x="-5.5" y="-9" width="11" height="10" rx="2" fill="white" opacity="0.92" />
+                <rect x="-4" y="-7" width="8" height="5" rx="1.2" fill="#AED6F1" opacity="0.8" />
+              </g>
+            )}
+          </g>
+        </g>
+
+        {/* ── Book — only in reading mode ── */}
+        {mood === 'reading' && (
+          <g transform="translate(26,67)"
+            style={{ animation: 'mascot-bob 3.6s ease-in-out infinite 0.4s' }}>
+            <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#F0F4FF" opacity="0.95" />
+            <rect x="-14" y="-8" width="14" height="16" rx="3" fill="#E2E9FF" opacity="0.95" />
+            <line x1="0" y1="-8" x2="0" y2="8" stroke="#BCC6E4" strokeWidth="1.5" />
+            <line x1="-9" y1="-1" x2="-2" y2="-1" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
+            <line x1="-9" y1="3.5" x2="-2" y2="3.5" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
+          </g>
+        )}
+
+        {/* ── Face ── */}
+        {/* Left eye */}
+        <g transform="translate(19,45)"
+          style={{ transformOrigin: '0px 0px', animation: 'mascot-blink 4.5s ease-in-out infinite' }}>
+          <circle cx="0" cy="0" r="3.8" fill="white" />
+          {mood === 'celebrating'
+            ? <path d="M -3 0 Q 0 -2.5 3 0" fill={strokeColor} />
+            : <circle cx={mood === 'reading' ? -1 : 1} cy="1" r="2.1" fill={strokeColor} />}
+        </g>
+        {/* Right eye */}
+        <g transform="translate(33,45)"
+          style={{ transformOrigin: '0px 0px', animation: 'mascot-blink 4.5s ease-in-out infinite 0.15s' }}>
+          <circle cx="0" cy="0" r="3.8" fill="white" />
+          {mood === 'celebrating'
+            ? <path d="M -3 0 Q 0 -2.5 3 0" fill={strokeColor} />
+            : <circle cx={mood === 'reading' ? -1 : 1} cy="1" r="2.1" fill={strokeColor} />}
+        </g>
+        {/* Mouth */}
+        <path d={mouthD}
+          stroke={strokeColor} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+
+        {/* ── Celebrating extras: sparkles ── */}
+        {mood === 'celebrating' && (
+          <>
+            <text x="42" y="18" fontSize="11"
+              style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite' }}>✨</text>
+            <text x="1" y="21" fontSize="9"
+              style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite 0.15s' }}>⭐</text>
+          </>
+        )}
+
+        {/* ── Over extras: sweat drop ── */}
+        {mood === 'over' && (
+          <path d="M 38 20 C 40.5 16, 44 14, 44 19 A 3.5 3.5 0 0 1 37.5 19 Z"
+            fill="rgba(74,151,232,0.75)"
+            style={{ animation: 'mascot-sweat 2s ease-in-out infinite' }} />
+        )}
+
+      </g>
+    </svg>
+  );
+}
+
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
 function Gauge({ used, goal, streak = 0 }) {
@@ -299,6 +454,15 @@ function Gauge({ used, goal, streak = 0 }) {
   const totalDropH = dropBottom - dropTip;
   const waterY = dropBottom - (fillPct / 100) * totalDropH;
 
+  // Mascot mood derived from usage
+  const mascotMood =
+    over                        ? 'over'        :
+    rawPct >= 100               ? 'celebrating' :
+    rawPct >= 75                ? 'reading'     :
+    rawPct >= 20                ? 'idle'        :
+    used === 0                  ? 'exercising'  :
+                                  'drinking';
+
   return (
     <div className="gauge-card" style={over ? { borderColor: "rgba(226,75,74,0.4)" } : {}}>
       {/* Water droplet */}
@@ -335,7 +499,7 @@ function Gauge({ used, goal, streak = 0 }) {
         </svg>
       </div>
       {/* Info */}
-      <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", maxWidth: 148 }}>
         <div style={{
           fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)",
           color: over ? "#E24B4A" : "var(--accent-dark)",
@@ -380,6 +544,8 @@ function Gauge({ used, goal, streak = 0 }) {
           )}
         </div>
       </div>
+      {/* Mascot */}
+      <WaterDropMascot mood={mascotMood} />
     </div>
   );
 }

@@ -250,7 +250,7 @@ input, textarea, select { font-size: 16px; }
   border: 0.5px solid var(--border);
   width: calc(100% - 40px);
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible; /* allow mascot bounce to not clip */
 }
 
 /* ─── Conservation tips ──────────────────────────────────────────────────── */
@@ -1767,5 +1767,82 @@ body {
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+}
+
+
+/* ─── Mascot animations ──────────────────────────────────────────────────── */
+
+/* Idle float */
+@keyframes mascot-bob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+
+/* Exercising bounce (fast, slight squash-stretch) */
+@keyframes mascot-bounce {
+  0%, 100% { transform: translateY(0px) scaleX(1) scaleY(1); }
+  45%, 55% { transform: translateY(-9px) scaleX(1.06) scaleY(0.93); }
+}
+
+/* Celebrating jump */
+@keyframes mascot-jump {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* Over-limit tremble */
+@keyframes mascot-worry {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25%       { transform: translateX(-2px) rotate(-3deg); }
+  75%       { transform: translateX(2px) rotate(3deg); }
+}
+
+/* Eye blink */
+@keyframes mascot-blink {
+  0%, 86%, 100% { transform: scaleY(1); }
+  91%           { transform: scaleY(0.08); }
+}
+
+/* Jumping jacks — left arm (down → up, alternates with right) */
+@keyframes mascot-jacks-l {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-90deg); }
+}
+
+/* Jumping jacks — right arm (up → down, opposite phase) */
+@keyframes mascot-jacks-r {
+  0%, 100% { transform: rotate(90deg); }
+  50%      { transform: rotate(0deg); }
+}
+
+/* Drinking — right arm held raised, gentle tip-up for the sip */
+@keyframes mascot-drink {
+  0%, 100% { transform: rotate(72deg); }
+  40%, 60% { transform: rotate(81deg); }
+}
+
+/* Celebrating — left arm waves (raised, oscillates) */
+@keyframes mascot-celeb-l {
+  0%, 100% { transform: rotate(-90deg); }
+  50%      { transform: rotate(-102deg); }
+}
+
+/* Celebrating — right arm waves (raised, oscillates) */
+@keyframes mascot-celeb-r {
+  0%, 100% { transform: rotate(90deg); }
+  50%      { transform: rotate(102deg); }
+}
+
+/* Sparkles for celebrating */
+@keyframes mascot-sparkle {
+  0%, 100% { transform: scale(1) translateY(0); opacity: 1; }
+  50%      { transform: scale(1.15) translateY(-3px); opacity: 0.75; }
+}
+
+/* Sweat drop for over-limit */
+@keyframes mascot-sweat {
+  0%   { transform: translateY(0); opacity: 0.75; }
+  80%  { transform: translateY(8px); opacity: 0.3; }
+  100% { transform: translateY(0); opacity: 0.75; }
 }
 
