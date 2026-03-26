@@ -1398,25 +1398,6 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
         </div>
       )}
 
-      {/* ── This Week stats ── */}
-      <div className="section">
-        <div className="section-label">This week</div>
-        <div className="stat-row">
-          <div className="stat-card">
-            <div className="stat-value">{thisTotal} L</div>
-            <div className="stat-lbl">Total used</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{
-              color: vsLastWeek === null ? "var(--text2)" : vsLastWeek <= 0 ? "#27AE60" : "#E24B4A"
-            }}>
-              {vsLastWeek === null ? "—" : `${vsLastWeek > 0 ? "+" : ""}${vsLastWeek}%`}
-            </div>
-            <div className="stat-lbl">vs last week</div>
-          </div>
-        </div>
-      </div>
-
       <ConservationTips />
 
       <DailyQuiz user={user} />
@@ -1449,6 +1430,25 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
       </div>
 
       <PersonalBest activities={activities} dailyGoal={dailyGoal} />
+
+      {/* ── This Week stats ── */}
+      <div className="section">
+        <div className="section-label">This week</div>
+        <div className="stat-row">
+          <div className="stat-card">
+            <div className="stat-value">{thisTotal} L</div>
+            <div className="stat-lbl">Total used</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{
+              color: vsLastWeek === null ? "var(--text2)" : vsLastWeek <= 0 ? "#27AE60" : "#E24B4A"
+            }}>
+              {vsLastWeek === null ? "—" : `${vsLastWeek > 0 ? "+" : ""}${vsLastWeek}%`}
+            </div>
+            <div className="stat-lbl">vs last week</div>
+          </div>
+        </div>
+      </div>
 
       <WeeklyChart activities={activities} dailyGoal={dailyGoal} now={now} />
 
