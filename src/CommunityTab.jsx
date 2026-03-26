@@ -954,11 +954,12 @@ export default function CommunityTab({ currentUser }) {
                   (c.challengerId === currentUser.uid && c.opponentId === f.uid) ||
                   (c.challengerId === f.uid && c.opponentId === currentUser.uid)
                 );
-                const chalBtnLabel =
-                  existingChallenge?.status === "active"  ? "⚡ Active" :
-                  existingChallenge?.status === "pending" ? "⚡ Pending" :
-                  "⚡ Challenge";
                 const chalBtnDisabled = existingChallenge?.status === "active" || existingChallenge?.status === "pending";
+                const chalBtnClass = `chal-btn${existingChallenge?.status === "pending" ? " pending" : existingChallenge?.status === "active" ? " active" : ""}`;
+                const chalBtnTitle =
+                  existingChallenge?.status === "active"  ? "Active challenge — tap to view" :
+                  existingChallenge?.status === "pending" ? "Challenge pending — tap to view" :
+                  "Challenge to a 7-day water saving contest";
                 return (
                   <div className="activity-item" key={f.uid} style={{ alignItems: "center" }}>
                     <Avatar initials={getInitials(f.displayName || f.email)} bg={colors.bg} color={colors.color} />
@@ -967,12 +968,11 @@ export default function CommunityTab({ currentUser }) {
                       <div className="activity-detail">{f.email}</div>
                     </div>
                     <button
-                      className="chal-btn"
+                      className={chalBtnClass}
                       onClick={() => { if (!chalBtnDisabled) sendChallenge(f); else setTab("challenges"); }}
-                      style={{ opacity: chalBtnDisabled ? 0.55 : 1 }}
-                      title={chalBtnDisabled ? "View in Challenges tab" : "Challenge to a 7-day contest"}
+                      title={chalBtnTitle}
                     >
-                      {chalBtnLabel}
+                      ⚡
                     </button>
                     <button className="icon-btn" onClick={() => removeFriend(f)} title="Remove friend">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
