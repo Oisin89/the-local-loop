@@ -1565,21 +1565,31 @@ body {
   }
 }
 
-/* Frosted-glass tab bar */
+/* Frosted-glass tab bar — overlays the bottom of the scroll area so blur works */
+.app-shell { position: relative; }
+
 .tab-bar {
-  background: rgba(255,255,255,0.82);
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border-top: 0.5px solid rgba(55,138,221,0.12);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  border-top: 0.5px solid rgba(55,138,221,0.14);
 }
 @media (prefers-color-scheme: dark) {
   .tab-bar {
-    background: rgba(18,40,67,0.85);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    border-top: 0.5px solid rgba(74,151,232,0.18);
+    background: rgba(14,32,56,0.78);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border-top: 0.5px solid rgba(74,151,232,0.2);
   }
 }
+
+/* Give the scroll area bottom padding so last content clears the tab bar */
+.screen { padding-bottom: 80px; }
 
 /* Active tab: small pill underline */
 .tab.active .tab-icon::after {
@@ -1603,8 +1613,9 @@ body {
 }
 @media (prefers-color-scheme: dark) {
   .gauge-card {
-    background: linear-gradient(135deg, #152f52 0%, #1c3a60 100%);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2), 0 0 0 0.5px rgba(255,255,255,0.05) inset;
+    background: linear-gradient(140deg, #0e2440 0%, #1a3d6b 55%, #1e4a7a 100%);
+    border-color: rgba(74,151,232,0.28);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(74,151,232,0.15) inset;
   }
 }
 
