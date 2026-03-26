@@ -263,50 +263,57 @@ function waterEquivalent(litres) {
 
 // ─── WaterDropMascot ──────────────────────────────────────────────────────────
 // mood: 'idle' | 'exercising' | 'drinking' | 'reading' | 'celebrating' | 'over'
+//
+// Key design rules:
+//  • Body animation lives on the <svg> element itself — no wrapper <g> with CSS
+//    transforms, which caused child elements to shift in Safari/Chrome.
+//  • All positioning uses SVG `transform` attributes (translate/rotate), never
+//    mixed CSS + SVG transforms on the same element.
+//  • Arm animations use an inner <g> whose local origin (0,0) is the shoulder,
+//    so CSS rotate() works correctly without needing transform-origin hacks.
+//  • Blink uses SMIL <animate> on the eye-cover rect — zero transform-origin issues.
+//  • The book sits at y=80, below the body (viewBox bottom = 70), visible because
+//    the <svg> has overflow:visible and the gauge card allows overflow.
 function WaterDropMascot({ mood = 'idle' }) {
   const isOver = mood === 'over';
   const bodyColor   = isOver ? '#E24B4A' : '#378ADD';
   const bodyLight   = isOver ? '#F07070' : '#68B8FF';
-  const strokeColor = isOver ? '#c0392b' : '#1a5fa8';
+  const strokeColor = isOver ? '#8B1A1A' : '#1a3a6e';
 
-  // Mouth path per mood
   const mouthD =
     mood === 'over'        ? 'M 20 59 Q 26 54 32 59' :
-    mood === 'celebrating' ? 'M 17 56 Q 26 64 35 56' :
-                             'M 20 57 Q 26 62 32 57';
+    mood === 'celebrating' ? 'M 17 57 Q 26 65 35 57' :
+                             'M 20 58 Q 26 63 32 58';
 
-  // Base arm rotations for static-posed moods
-  // (animated moods get overridden by their CSS animations)
-  const armLBase =
-    mood === 'celebrating' ? -90 :
-    mood === 'over'        ? -15 : 0;
+  // SVG transform string for each arm (static poses)
+  // Arm groups are translated to shoulder; inner rotate is around local (0,0)
+  const armLRot = mood === 'celebrating' ? -90 : mood === 'over' ? -15 : 0;
+  const armRRot = mood === 'celebrating' ?  90 : mood === 'drinking' ? 72 : mood === 'over' ? 15 : 0;
 
-  const armRBase =
-    mood === 'celebrating' ? 90  :
-    mood === 'drinking'    ? 72  :
-    mood === 'over'        ? 15  : 0;
-
-  // Per-element animation strings
-  const bodyAnim =
+  // CSS animation applied directly to the <svg> element
+  const svgAnim =
     mood === 'exercising'  ? 'mascot-bounce 0.65s ease-in-out infinite' :
-    mood === 'celebrating' ? 'mascot-jump 0.5s ease-in-out infinite' :
-    mood === 'over'        ? 'mascot-worry 0.2s ease-in-out infinite' :
-    mood === 'reading'     ? 'mascot-bob 3.6s ease-in-out infinite' :
-                             'mascot-bob 2.4s ease-in-out infinite';
+    mood === 'celebrating' ? 'mascot-jump   0.5s  ease-in-out infinite' :
+    mood === 'over'        ? 'mascot-worry  0.2s  ease-in-out infinite' :
+    mood === 'reading'     ? 'mascot-bob    3.6s  ease-in-out infinite' :
+                             'mascot-bob    2.4s  ease-in-out infinite';
 
+  // CSS animation for the arm's inner rotation group
   const armLAnim =
     mood === 'exercising'  ? 'mascot-jacks-l 0.65s ease-in-out infinite' :
-    mood === 'celebrating' ? 'mascot-celeb-l 0.5s ease-in-out infinite' : '';
-
+    mood === 'celebrating' ? 'mascot-celeb-l  0.5s ease-in-out infinite' : '';
   const armRAnim =
     mood === 'exercising'  ? 'mascot-jacks-r 0.65s ease-in-out infinite' :
-    mood === 'celebrating' ? 'mascot-celeb-r 0.5s ease-in-out infinite 0.1s' :
-    mood === 'drinking'    ? 'mascot-drink 2s ease-in-out infinite' : '';
+    mood === 'celebrating' ? 'mascot-celeb-r  0.5s ease-in-out infinite 0.1s' :
+    mood === 'drinking'    ? 'mascot-drink    2s   ease-in-out infinite' : '';
+
+  // Pupil x offset: look toward book when reading, otherwise slight right
+  const pupilX = mood === 'reading' ? -1 : 1;
 
   return (
     <svg
       width="52" height="70" viewBox="0 0 52 70"
-      style={{ overflow: 'visible', flexShrink: 0, display: 'block' }}
+      style={{ overflow: 'visible', flexShrink: 0, display: 'block', animation: svgAnim }}
       aria-hidden="true"
     >
       <defs>
@@ -316,102 +323,85 @@ function WaterDropMascot({ mood = 'idle' }) {
         </linearGradient>
       </defs>
 
-      {/* Whole-body animation wrapper */}
-      <g style={{ animation: bodyAnim, transformOrigin: '26px 36px' }}>
-
-        {/* ── Left arm (behind body) ── */}
-        <g transform="translate(7,47)">
-          <g style={{
-            transformOrigin: '0px 0px',
-            transform: `rotate(${armLBase}deg)`,
-            animation: armLAnim || undefined,
-          }}>
-            <path d="M 0 0 Q -3 7 -1 14"
-              stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
-          </g>
+      {/* ── Left arm — behind body ─────────────────────────────────────────── */}
+      {/* Outer g positions shoulder; inner g rotates around that point */}
+      <g transform="translate(7,47)">
+        <g style={{ transformBox: 'fill-box', transformOrigin: '0 0', animation: armLAnim || undefined, transform: `rotate(${armLRot}deg)` }}>
+          <path d="M 0 0 Q -3 7 -1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
         </g>
-
-        {/* ── Body ── */}
-        <path
-          d="M 26 2 C 42 16, 46 36, 46 50 A 20 20 0 0 1 6 50 C 6 36, 10 16, 26 2 Z"
-          fill="url(#mgGrad)"
-        />
-        {/* Gloss highlight */}
-        <ellipse cx="33" cy="16" rx="5" ry="7"
-          fill="rgba(255,255,255,0.18)"
-          transform="rotate(-22 33 16)"
-        />
-
-        {/* ── Right arm (in front of body) ── */}
-        <g transform="translate(45,47)">
-          <g style={{
-            transformOrigin: '0px 0px',
-            transform: `rotate(${armRBase}deg)`,
-            animation: armRAnim || undefined,
-          }}>
-            <path d="M 0 0 Q 3 7 1 14"
-              stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
-            {/* Cup — only shown in drinking mode */}
-            {mood === 'drinking' && (
-              <g transform="translate(1,14)">
-                <rect x="-5.5" y="-9" width="11" height="10" rx="2" fill="white" opacity="0.92" />
-                <rect x="-4" y="-7" width="8" height="5" rx="1.2" fill="#AED6F1" opacity="0.8" />
-              </g>
-            )}
-          </g>
-        </g>
-
-        {/* ── Book — only in reading mode ── */}
-        {mood === 'reading' && (
-          <g transform="translate(26,67)"
-            style={{ animation: 'mascot-bob 3.6s ease-in-out infinite 0.4s' }}>
-            <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#F0F4FF" opacity="0.95" />
-            <rect x="-14" y="-8" width="14" height="16" rx="3" fill="#E2E9FF" opacity="0.95" />
-            <line x1="0" y1="-8" x2="0" y2="8" stroke="#BCC6E4" strokeWidth="1.5" />
-            <line x1="-9" y1="-1" x2="-2" y2="-1" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
-            <line x1="-9" y1="3.5" x2="-2" y2="3.5" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
-          </g>
-        )}
-
-        {/* ── Face ── */}
-        {/* Left eye */}
-        <g transform="translate(19,45)"
-          style={{ transformOrigin: '0px 0px', animation: 'mascot-blink 4.5s ease-in-out infinite' }}>
-          <circle cx="0" cy="0" r="3.8" fill="white" />
-          {mood === 'celebrating'
-            ? <path d="M -3 0 Q 0 -2.5 3 0" fill={strokeColor} />
-            : <circle cx={mood === 'reading' ? -1 : 1} cy="1" r="2.1" fill={strokeColor} />}
-        </g>
-        {/* Right eye */}
-        <g transform="translate(33,45)"
-          style={{ transformOrigin: '0px 0px', animation: 'mascot-blink 4.5s ease-in-out infinite 0.15s' }}>
-          <circle cx="0" cy="0" r="3.8" fill="white" />
-          {mood === 'celebrating'
-            ? <path d="M -3 0 Q 0 -2.5 3 0" fill={strokeColor} />
-            : <circle cx={mood === 'reading' ? -1 : 1} cy="1" r="2.1" fill={strokeColor} />}
-        </g>
-        {/* Mouth */}
-        <path d={mouthD}
-          stroke={strokeColor} strokeWidth="2.2" fill="none" strokeLinecap="round" />
-
-        {/* ── Celebrating extras: sparkles ── */}
-        {mood === 'celebrating' && (
-          <>
-            <text x="42" y="18" fontSize="11"
-              style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite' }}>✨</text>
-            <text x="1" y="21" fontSize="9"
-              style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite 0.15s' }}>⭐</text>
-          </>
-        )}
-
-        {/* ── Over extras: sweat drop ── */}
-        {mood === 'over' && (
-          <path d="M 38 20 C 40.5 16, 44 14, 44 19 A 3.5 3.5 0 0 1 37.5 19 Z"
-            fill="rgba(74,151,232,0.75)"
-            style={{ animation: 'mascot-sweat 2s ease-in-out infinite' }} />
-        )}
-
       </g>
+
+      {/* ── Body ──────────────────────────────────────────────────────────── */}
+      <path d="M 26 2 C 42 16, 46 36, 46 50 A 20 20 0 0 1 6 50 C 6 36, 10 16, 26 2 Z"
+        fill="url(#mgGrad)" />
+
+      {/* Gloss highlight — sits in upper-right of body */}
+      <ellipse cx="34" cy="18" rx="4.5" ry="6.5"
+        fill="rgba(255,255,255,0.22)" transform="rotate(-22 34 18)" />
+
+      {/* ── Right arm — in front of body ──────────────────────────────────── */}
+      <g transform="translate(45,47)">
+        <g style={{ transformBox: 'fill-box', transformOrigin: '0 0', animation: armRAnim || undefined, transform: `rotate(${armRRot}deg)` }}>
+          <path d="M 0 0 Q 3 7 1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
+          {mood === 'drinking' && (
+            <g transform="translate(1,14)">
+              <rect x="-5.5" y="-9" width="11" height="10" rx="2" fill="white" opacity="0.92" />
+              <rect x="-4"   y="-7" width="8"  height="5"  rx="1" fill="#AED6F1" opacity="0.8" />
+            </g>
+          )}
+        </g>
+      </g>
+
+      {/* ── Face ──────────────────────────────────────────────────────────── */}
+      {/* Left eye — white base + pupil + SMIL blink cover */}
+      <circle cx="19" cy="46" r="3.8" fill="white" />
+      {mood === 'celebrating'
+        ? <path d="M 16 46 Q 19 43.5 22 46" fill={strokeColor} />
+        : <circle cx={19 + pupilX} cy="47" r="2.1" fill={strokeColor} />}
+      {/* blink: rect grows from height=0 to cover the eye, then shrinks */}
+      <rect x="15.2" y="42.2" width="7.6" height="0" rx="3.8" fill={bodyColor}>
+        <animate attributeName="height" values="0;0;0;7.6;0;0" dur="4.5s" repeatCount="indefinite" />
+        <animate attributeName="y"      values="42.2;42.2;42.2;42.2;42.2;42.2" dur="4.5s" repeatCount="indefinite" />
+      </rect>
+
+      {/* Right eye */}
+      <circle cx="33" cy="46" r="3.8" fill="white" />
+      {mood === 'celebrating'
+        ? <path d="M 30 46 Q 33 43.5 36 46" fill={strokeColor} />
+        : <circle cx={33 + pupilX} cy="47" r="2.1" fill={strokeColor} />}
+      <rect x="29.2" y="42.2" width="7.6" height="0" rx="3.8" fill={bodyColor}>
+        <animate attributeName="height" values="0;0;0;7.6;0;0" dur="4.5s" begin="0.2s" repeatCount="indefinite" />
+        <animate attributeName="y"      values="42.2;42.2;42.2;42.2;42.2;42.2" dur="4.5s" begin="0.2s" repeatCount="indefinite" />
+      </rect>
+
+      {/* Mouth */}
+      <path d={mouthD} stroke={strokeColor} strokeWidth="2" fill="none" strokeLinecap="round" />
+
+      {/* ── Book — below body (y=80, outside viewBox, visible via overflow) ─ */}
+      {mood === 'reading' && (
+        <g transform="translate(26,80)">
+          <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#F0F4FF" opacity="0.95" />
+          <rect x="-14" y="-8" width="14" height="16" rx="3" fill="#E2E9FF" opacity="0.95" />
+          <line x1="0" y1="-8" x2="0"  y2="8"   stroke="#BCC6E4" strokeWidth="1.5" />
+          <line x1="-9" y1="-1" x2="-2" y2="-1" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
+          <line x1="-9" y1="3.5" x2="-2" y2="3.5" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
+        </g>
+      )}
+
+      {/* ── Celebrating extras ─────────────────────────────────────────────── */}
+      {mood === 'celebrating' && (
+        <>
+          <text x="42" y="18" fontSize="11" style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite' }}>✨</text>
+          <text x="1"  y="22" fontSize="9"  style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite 0.15s' }}>⭐</text>
+        </>
+      )}
+
+      {/* ── Over: sweat drop ──────────────────────────────────────────────── */}
+      {mood === 'over' && (
+        <path d="M 39 21 C 41 17, 44 15, 44 20 A 3.2 3.2 0 0 1 38 20 Z"
+          fill="rgba(74,151,232,0.8)"
+          style={{ animation: 'mascot-sweat 2s ease-in-out infinite' }} />
+      )}
     </svg>
   );
 }
