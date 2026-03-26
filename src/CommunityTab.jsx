@@ -973,14 +973,10 @@ export default function CommunityTab({ currentUser }) {
 
       {/* ── Subtabs ── */}
       <div className="subtab-row">
-        {["friends", "challenges", "requests", "add"].map((t) => {
-          const pendingChallenges = challenges.filter(c =>
-            c.status === "pending" && c.opponentId === currentUser.uid
-          ).length;
+        {["friends", "requests", "add"].map((t) => {
           const label =
-            t === "friends"    ? `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` :
-            t === "challenges" ? `Challenges${pendingChallenges > 0 ? ` · ${pendingChallenges}` : ""}` :
-            t === "requests"   ? `Requests${incoming.length > 0 ? ` · ${incoming.length}` : ""}` :
+            t === "friends"  ? `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` :
+            t === "requests" ? `Requests${incoming.length > 0 ? ` · ${incoming.length}` : ""}` :
             "Add friend";
           return (
             <button key={t} className={`subtab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
@@ -1002,6 +998,16 @@ export default function CommunityTab({ currentUser }) {
             <div className="activity-list">
               {friends.map((f) => {
                 const colors = getAvatarColor(f.uid);
+                const existingChallenge = challenges.find(c =>
+                  (c.challengerId === currentUser.uid && c.opponentId === f.uid) ||
+                  (c.challengerId === f.uid && c.opponentId === currentUser.uid)
+                );
+                const chalBtnDisabled = existingChallenge?.status === "active" || existingChallenge?.status === "pending";
+                const chalBtnClass = `chal-btn${existingChallenge?.status === "pending" ? " pending" : existingChallenge?.status === "active" ? " active" : ""}`;
+                const chalBtnTitle =
+                  existingChallenge?.status === "active"  ? "Active challenge. Tap to view." :
+                  existingChallenge?.status === "pending" ? "Challenge pending. Tap to view." :
+                  "Challenge to a 7-day water saving contest";
                 return (
                   <div className="activity-item" key={f.uid} style={{ alignItems: "center" }}>
                     <Avatar initials={getInitials(f.displayName || f.email)} bg={colors.bg} color={colors.color} />
@@ -1009,6 +1015,13 @@ export default function CommunityTab({ currentUser }) {
                       <div className="activity-name">{f.displayName || "User"}</div>
                       <div className="activity-detail">{f.email}</div>
                     </div>
+                    <button
+                      className={chalBtnClass}
+                      onClick={() => !chalBtnDisabled && sendChallenge(f)}
+                      title={chalBtnTitle}
+                    >
+                      ⚡
+                    </button>
                     <button className="icon-btn" onClick={() => removeFriend(f)} title="Remove friend">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
