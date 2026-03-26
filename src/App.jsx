@@ -262,18 +262,9 @@ function waterEquivalent(litres) {
 }
 
 // ─── WaterDropMascot ──────────────────────────────────────────────────────────
-// mood: 'idle' | 'exercising' | 'drinking' | 'reading' | 'celebrating' | 'over'
-//
-// Key design rules:
-//  • Body animation lives on the <svg> element itself — no wrapper <g> with CSS
-//    transforms, which caused child elements to shift in Safari/Chrome.
-//  • All positioning uses SVG `transform` attributes (translate/rotate), never
-//    mixed CSS + SVG transforms on the same element.
-//  • Arm animations use an inner <g> whose local origin (0,0) is the shoulder,
-//    so CSS rotate() works correctly without needing transform-origin hacks.
-//  • Blink uses SMIL <animate> on the eye-cover rect — zero transform-origin issues.
-//  • The book sits at y=80, below the body (viewBox bottom = 70), visible because
-//    the <svg> has overflow:visible and the gauge card allows overflow.
+// Arm animations use SMIL <animateTransform type="rotate" cx cy> so rotation
+// always happens around the shoulder point (0,0 in the shoulder-translated group),
+// with no CSS transform-origin ambiguity.
 function WaterDropMascot({ mood = 'idle' }) {
   const isOver = mood === 'over';
   const bodyColor   = isOver ? '#E24B4A' : '#378ADD';
@@ -285,30 +276,12 @@ function WaterDropMascot({ mood = 'idle' }) {
     mood === 'celebrating' ? 'M 17 57 Q 26 65 35 57' :
                              'M 20 58 Q 26 63 32 58';
 
-  // SVG transform string for each arm (static poses)
-  // Arm groups are translated to shoulder; inner rotate is around local (0,0)
-  const armLRot = mood === 'celebrating' ? -90 : mood === 'over' ? -15 : 0;
-  const armRRot = mood === 'celebrating' ?  90 : mood === 'drinking' ? 72 : mood === 'over' ? 15 : 0;
-
-  // CSS animation applied directly to the <svg> element
+  // Body animation on the svg element itself (no wrapper g)
   const svgAnim =
     mood === 'exercising'  ? 'mascot-bounce 0.65s ease-in-out infinite' :
     mood === 'celebrating' ? 'mascot-jump   0.5s  ease-in-out infinite' :
     mood === 'over'        ? 'mascot-worry  0.2s  ease-in-out infinite' :
-    mood === 'reading'     ? 'mascot-bob    3.6s  ease-in-out infinite' :
                              'mascot-bob    2.4s  ease-in-out infinite';
-
-  // CSS animation for the arm's inner rotation group
-  const armLAnim =
-    mood === 'exercising'  ? 'mascot-jacks-l 0.65s ease-in-out infinite' :
-    mood === 'celebrating' ? 'mascot-celeb-l  0.5s ease-in-out infinite' : '';
-  const armRAnim =
-    mood === 'exercising'  ? 'mascot-jacks-r 0.65s ease-in-out infinite' :
-    mood === 'celebrating' ? 'mascot-celeb-r  0.5s ease-in-out infinite 0.1s' :
-    mood === 'drinking'    ? 'mascot-drink    2s   ease-in-out infinite' : '';
-
-  // Pupil x offset: look toward book when reading, otherwise slight right
-  const pupilX = mood === 'reading' ? -1 : 1;
 
   return (
     <svg
@@ -324,24 +297,37 @@ function WaterDropMascot({ mood = 'idle' }) {
       </defs>
 
       {/* ── Left arm — behind body ─────────────────────────────────────────── */}
-      {/* Outer g positions shoulder; inner g rotates around that point */}
+      {/* translate moves origin to the shoulder; animateTransform rotates     */}
+      {/* around cx=0 cy=0, which IS the shoulder in this local space.         */}
       <g transform="translate(7,47)">
-        <g style={{ transformBox: 'fill-box', transformOrigin: '0 0', animation: armLAnim || undefined, transform: `rotate(${armLRot}deg)` }}>
-          <path d="M 0 0 Q -3 7 -1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
-        </g>
+        <path d="M 0 0 Q -3 7 -1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none">
+          {mood === 'exercising' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="0 0 0;-90 0 0;0 0 0" dur="0.65s" repeatCount="indefinite" />
+          )}
+          {mood === 'celebrating' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="-90 0 0;-104 0 0;-90 0 0" dur="0.5s" repeatCount="indefinite" />
+          )}
+          {mood === 'over' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="-15 0 0;-15 0 0" dur="1s" repeatCount="indefinite" />
+          )}
+        </path>
       </g>
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <path d="M 26 2 C 42 16, 46 36, 46 50 A 20 20 0 0 1 6 50 C 6 36, 10 16, 26 2 Z"
         fill="url(#mgGrad)" />
 
-      {/* Gloss highlight — sits in upper-right of body */}
+      {/* Gloss highlight */}
       <ellipse cx="34" cy="18" rx="4.5" ry="6.5"
         fill="rgba(255,255,255,0.22)" transform="rotate(-22 34 18)" />
 
       {/* ── Right arm — in front of body ──────────────────────────────────── */}
       <g transform="translate(45,47)">
-        <g style={{ transformBox: 'fill-box', transformOrigin: '0 0', animation: armRAnim || undefined, transform: `rotate(${armRRot}deg)` }}>
+        {/* The arm path + cup share one g so the cup follows the arm rotation */}
+        <g>
           <path d="M 0 0 Q 3 7 1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
           {mood === 'drinking' && (
             <g transform="translate(1,14)">
@@ -349,44 +335,51 @@ function WaterDropMascot({ mood = 'idle' }) {
               <rect x="-4"   y="-7" width="8"  height="5"  rx="1" fill="#AED6F1" opacity="0.8" />
             </g>
           )}
+          {mood === 'exercising' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="90 0 0;0 0 0;90 0 0" dur="0.65s" repeatCount="indefinite" />
+          )}
+          {mood === 'celebrating' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="90 0 0;104 0 0;90 0 0" dur="0.5s" repeatCount="indefinite" />
+          )}
+          {mood === 'drinking' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="72 0 0;81 0 0;72 0 0" dur="2s" repeatCount="indefinite" />
+          )}
+          {mood === 'over' && (
+            <animateTransform attributeName="transform" type="rotate"
+              values="15 0 0;15 0 0" dur="1s" repeatCount="indefinite" />
+          )}
         </g>
       </g>
 
       {/* ── Face ──────────────────────────────────────────────────────────── */}
-      {/* Left eye — white base + pupil + SMIL blink cover */}
+      {/* Left eye */}
       <circle cx="19" cy="46" r="3.8" fill="white" />
       {mood === 'celebrating'
         ? <path d="M 16 46 Q 19 43.5 22 46" fill={strokeColor} />
-        : <circle cx={19 + pupilX} cy="47" r="2.1" fill={strokeColor} />}
-      {/* blink: rect grows from height=0 to cover the eye, then shrinks */}
+        : <circle cx="20" cy="47" r="2.1" fill={strokeColor} />}
+      {/* Blink cover — SMIL height animation, both eyes same timing */}
       <rect x="15.2" y="42.2" width="7.6" height="0" rx="3.8" fill={bodyColor}>
-        <animate attributeName="height" values="0;0;0;7.6;0;0" dur="4.5s" repeatCount="indefinite" />
-        <animate attributeName="y"      values="42.2;42.2;42.2;42.2;42.2;42.2" dur="4.5s" repeatCount="indefinite" />
+        <animate attributeName="height"
+          values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
+          dur="3s" repeatCount="indefinite" />
       </rect>
 
       {/* Right eye */}
       <circle cx="33" cy="46" r="3.8" fill="white" />
       {mood === 'celebrating'
         ? <path d="M 30 46 Q 33 43.5 36 46" fill={strokeColor} />
-        : <circle cx={33 + pupilX} cy="47" r="2.1" fill={strokeColor} />}
+        : <circle cx="34" cy="47" r="2.1" fill={strokeColor} />}
       <rect x="29.2" y="42.2" width="7.6" height="0" rx="3.8" fill={bodyColor}>
-        <animate attributeName="height" values="0;0;0;7.6;0;0" dur="4.5s" begin="0.2s" repeatCount="indefinite" />
-        <animate attributeName="y"      values="42.2;42.2;42.2;42.2;42.2;42.2" dur="4.5s" begin="0.2s" repeatCount="indefinite" />
+        <animate attributeName="height"
+          values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
+          dur="3s" repeatCount="indefinite" />
       </rect>
 
       {/* Mouth */}
       <path d={mouthD} stroke={strokeColor} strokeWidth="2" fill="none" strokeLinecap="round" />
-
-      {/* ── Book — below body (y=80, outside viewBox, visible via overflow) ─ */}
-      {mood === 'reading' && (
-        <g transform="translate(26,80)">
-          <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#F0F4FF" opacity="0.95" />
-          <rect x="-14" y="-8" width="14" height="16" rx="3" fill="#E2E9FF" opacity="0.95" />
-          <line x1="0" y1="-8" x2="0"  y2="8"   stroke="#BCC6E4" strokeWidth="1.5" />
-          <line x1="-9" y1="-1" x2="-2" y2="-1" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
-          <line x1="-9" y1="3.5" x2="-2" y2="3.5" stroke="#C8D2EE" strokeWidth="1.5" opacity="0.8" />
-        </g>
-      )}
 
       {/* ── Celebrating extras ─────────────────────────────────────────────── */}
       {mood === 'celebrating' && (
@@ -446,12 +439,11 @@ function Gauge({ used, goal, streak = 0 }) {
 
   // Mascot mood derived from usage
   const mascotMood =
-    over                        ? 'over'        :
-    rawPct >= 100               ? 'celebrating' :
-    rawPct >= 75                ? 'reading'     :
-    rawPct >= 20                ? 'idle'        :
-    used === 0                  ? 'exercising'  :
-                                  'drinking';
+    over         ? 'over'        :
+    rawPct >= 75 ? 'celebrating' :
+    rawPct >= 51 ? 'exercising'  :
+    rawPct >= 20 ? 'drinking'    :
+                   'idle';
 
   return (
     <div className="gauge-card" style={over ? { borderColor: "rgba(226,75,74,0.4)" } : {}}>
