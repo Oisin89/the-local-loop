@@ -215,7 +215,13 @@ function useLeaderboard(currentUser, friends) {
 
       const valid = withTotals
         .filter(p => p.total !== null)
-        .sort((a, b) => a.total - b.total);
+        .sort((a, b) => {
+          // Users with 0 L logged are inactive — always sink to the bottom
+          if (a.total === 0 && b.total === 0) return 0;
+          if (a.total === 0) return 1;
+          if (b.total === 0) return -1;
+          return a.total - b.total;
+        });
 
       setRankings(valid);
       setLoadingBoard(false);
@@ -853,7 +859,7 @@ export default function CommunityTab({ currentUser }) {
   return (
     <div className="page">
       <div className="page-header">
-        <div className="page-title">Friends</div>
+        <div className="page-title">Community</div>
         {incoming.length > 0 && (
           <div className="notif-badge">{incoming.length}</div>
         )}
