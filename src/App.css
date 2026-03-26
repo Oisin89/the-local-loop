@@ -1666,6 +1666,7 @@ body {
 }
 
 /* Quick-log buttons: slight lift on hover */
+.quick-log-row { padding-top: 4px; } /* room for the lift so it doesn't clip */
 .quick-log-btn {
   box-shadow: 0 1px 4px rgba(55,138,221,0.06);
   transition: all 0.18s ease;
