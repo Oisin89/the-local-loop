@@ -456,7 +456,7 @@ function Gauge({ used, goal, streak = 0 }) {
         </svg>
       </div>
       {/* Info */}
-      <div style={{ flex: 1, minWidth: 0, overflow: "hidden", maxWidth: 148 }}>
+      <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
         <div style={{
           fontSize: 28, fontWeight: 700, fontFamily: "var(--mono)",
           color: over ? "#E24B4A" : "var(--accent-dark)",
@@ -473,7 +473,6 @@ function Gauge({ used, goal, streak = 0 }) {
           <span style={{
             fontSize: 12, fontWeight: 500,
             color: statusColor,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             transition: "color 0.3s"
           }}>
             {statusMsg}
