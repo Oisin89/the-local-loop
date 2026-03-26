@@ -357,6 +357,11 @@ function Gauge({ used, goal, streak = 0 }) {
           }}>
             {statusMsg}
           </span>
+          {!over && waterEquivalent(goal - used) && (
+            <span style={{ fontSize: 11, color: "var(--text2)", marginTop: 0, opacity: 0.8 }}>
+              ≈ {waterEquivalent(goal - used)} remaining
+            </span>
+          )}
           {streak > 0 && (
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 4,
@@ -372,11 +377,6 @@ function Gauge({ used, goal, streak = 0 }) {
                 {streak} day streak
               </span>
             </div>
-          )}
-          {waterEquivalent(used) && (
-            <span style={{ fontSize: 11, color: "var(--text2)", marginTop: 2, opacity: 0.8 }}>
-              ≈ {waterEquivalent(used)}
-            </span>
           )}
         </div>
       </div>
