@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   collection, collectionGroup, query, where, getDocs, addDoc,
-  deleteDoc, doc, onSnapshot, getDoc, setDoc, serverTimestamp
+  deleteDoc, doc, onSnapshot, getDoc, setDoc, serverTimestamp,
+  Timestamp, updateDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -377,6 +378,206 @@ function useStreakLeaderboard(currentUser, friends) {
   return { streakRankings, loadingStreak };
 }
 
+// ─── Challenges hook ──────────────────────────────────────────────────────────
+
+function useChallenges(currentUser) {
+  const [challenges, setChallenges] = useState([]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let asChallengerDocs = [];
+    let asOpponentDocs = [];
+
+    const merge = () => {
+      const seen = new Set();
+      const all = [...asChallengerDocs, ...asOpponentDocs].filter(c => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
+      all.sort((a, b) => {
+        const ta = a.createdAt?.toDate?.() ?? new Date(0);
+        const tb = b.createdAt?.toDate?.() ?? new Date(0);
+        return tb - ta;
+      });
+      setChallenges(all);
+    };
+
+    const unsub1 = onSnapshot(
+      query(collection(db, "challenges"), where("challengerId", "==", currentUser.uid)),
+      snap => { asChallengerDocs = snap.docs.map(d => ({ id: d.id, ...d.data() })); merge(); }
+    );
+    const unsub2 = onSnapshot(
+      query(collection(db, "challenges"), where("opponentId", "==", currentUser.uid)),
+      snap => { asOpponentDocs = snap.docs.map(d => ({ id: d.id, ...d.data() })); merge(); }
+    );
+
+    return () => { unsub1(); unsub2(); };
+  }, [currentUser?.uid]);
+
+  return challenges;
+}
+
+// ─── Challenge Card ───────────────────────────────────────────────────────────
+
+function ChallengeCard({ challenge, currentUser, onAccept, onDecline }) {
+  const isChallenger = challenge.challengerId === currentUser.uid;
+  const theirName    = isChallenger ? challenge.opponentName  : challenge.challengerName;
+  const theirId      = isChallenger ? challenge.opponentId    : challenge.challengerId;
+
+  const [myTotal,    setMyTotal]    = useState(null);
+  const [theirTotal, setTheirTotal] = useState(null);
+  const [myDays,     setMyDays]     = useState(0);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const isActive = challenge.status === "active";
+  const endDate  = challenge.endDate?.toDate?.();
+  const now      = new Date();
+  const isPast   = isActive && endDate && endDate < now;
+  const daysLeft = endDate && !isPast ? Math.max(0, Math.ceil((endDate - now) / 86400000)) : null;
+
+  useEffect(() => {
+    if (!isActive || !challenge.startDate) return;
+    const startDate = challenge.startDate.toDate();
+    const end       = challenge.endDate.toDate();
+
+    const fetchUserStats = async (uid) => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, "users", uid, "activities"), where("createdAt", ">=", startDate))
+        );
+        const filtered = snap.docs.filter(d => {
+          const ts = d.data().createdAt;
+          return (ts?.toDate?.() ?? new Date(ts)) <= end;
+        });
+        const total = Math.round(filtered.reduce((s, d) => s + (d.data().litres || 0), 0));
+        const days  = new Set(filtered.map(d => {
+          const ts = d.data().createdAt;
+          return (ts?.toDate?.() ?? new Date(ts)).toDateString();
+        })).size;
+        return { total, days };
+      } catch { return { total: 0, days: 0 }; }
+    };
+
+    setLoadingStats(true);
+    Promise.all([fetchUserStats(currentUser.uid), fetchUserStats(theirId)]).then(([mine, theirs]) => {
+      setMyTotal(mine.total);
+      setMyDays(mine.days);
+      setTheirTotal(theirs.total);
+      setLoadingStats(false);
+    });
+  }, [challenge.id, isActive]);
+
+  // Result for past challenges
+  let winner = null, resultText = null;
+  if (isPast && myTotal !== null && theirTotal !== null) {
+    const minDays = Math.min(myDays, /* theirDays */ myDays); // conservative
+    if (minDays < 3) {
+      resultText = "Insufficient data — at least 3 days of logging needed from both sides.";
+    } else if (myTotal < theirTotal) {
+      winner = "me";
+      resultText = `🎉 You win! You used ${myTotal} L vs their ${theirTotal} L.`;
+    } else if (theirTotal < myTotal) {
+      winner = "them";
+      resultText = `${shortName(theirName)} wins — they used ${theirTotal} L vs your ${myTotal} L. Keep going!`;
+    } else {
+      winner = "draw";
+      resultText = `🤝 It's a draw! Both used ${myTotal} L. Great effort from both sides.`;
+    }
+  }
+
+  const statusLabel = isPast ? "Challenge ended" :
+    isActive         ? "Active challenge" :
+    challenge.status === "pending"  ? (isChallenger ? "Waiting for response" : "Incoming challenge") :
+    challenge.status === "declined" ? "Declined" : "Challenge";
+
+  const accentColor = isActive && !isPast ? "var(--accent)" : "var(--text2)";
+
+  return (
+    <div className="chal-card">
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ fontSize: 13 }}>⚡</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: accentColor, textTransform: "uppercase", letterSpacing: "0.7px" }}>
+            {statusLabel}
+          </span>
+        </div>
+        {daysLeft !== null && (
+          <span style={{ fontSize: 11, color: "var(--text2)", fontFamily: "var(--mono)" }}>{daysLeft}d left</span>
+        )}
+      </div>
+
+      {/* Participants */}
+      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
+        <span style={{ color: "var(--accent-dark)", fontWeight: 700 }}>You</span>
+        <span style={{ color: "var(--text2)", fontSize: 11, margin: "0 5px" }}>vs</span>
+        <span>{shortName(theirName) || "Friend"}</span>
+      </div>
+
+      {/* Pending: accept/decline or waiting */}
+      {challenge.status === "pending" && !isChallenger && (
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="accept-btn" onClick={() => onAccept(challenge)}>Accept</button>
+          <button className="decline-btn" onClick={() => onDecline(challenge)}>Decline</button>
+        </div>
+      )}
+      {challenge.status === "pending" && isChallenger && (
+        <span style={{ fontSize: 12, color: "var(--text2)" }}>
+          Waiting for {shortName(theirName)} to respond…
+        </span>
+      )}
+
+      {/* Active: live progress bars */}
+      {isActive && !isPast && (
+        loadingStats ? (
+          <span style={{ fontSize: 12, color: "var(--text2)" }}>Loading progress…</span>
+        ) : myTotal !== null ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            {[
+              { label: "You",               total: myTotal,    color: myTotal <= theirTotal ? "#27AE60" : "#E24B4A", isMe: true  },
+              { label: shortName(theirName), total: theirTotal, color: theirTotal < myTotal  ? "#27AE60" : "#E24B4A", isMe: false },
+            ].map(({ label, total, color, isMe }) => (
+              <div key={label}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: isMe ? 700 : 500, color: isMe ? "var(--accent-dark)" : "var(--text)" }}>{label}</span>
+                  <span style={{ fontSize: 12, fontFamily: "var(--mono)", color: isMe ? "var(--accent)" : "var(--text2)" }}>{total} L</span>
+                </div>
+                <div className="impact-bar-track">
+                  <div className="impact-bar-fill" style={{
+                    width: `${(myTotal + theirTotal) > 0 ? Math.round((total / (myTotal + theirTotal)) * 100) : 50}%`,
+                    background: color,
+                  }} />
+                </div>
+              </div>
+            ))}
+            <span style={{ fontSize: 11, color: "var(--text2)" }}>Lower usage wins · {myDays}/{7} days logged</span>
+          </div>
+        ) : null
+      )}
+
+      {/* Past: result */}
+      {isPast && (
+        loadingStats ? (
+          <span style={{ fontSize: 12, color: "var(--text2)" }}>Calculating result…</span>
+        ) : resultText ? (
+          <div className={`chal-result ${winner === "me" ? "win" : winner === "draw" ? "draw" : "lose"}`}>
+            {resultText}
+          </div>
+        ) : null
+      )}
+
+      {/* Declined */}
+      {challenge.status === "declined" && (
+        <span style={{ fontSize: 12, color: "var(--text2)" }}>
+          {isChallenger ? `${shortName(theirName)} declined this challenge.` : "You declined this challenge."}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CommunityTab({ currentUser }) {
@@ -391,6 +592,7 @@ export default function CommunityTab({ currentUser }) {
 
   const { rankings, loadingBoard } = useLeaderboard(currentUser, friends);
   const { streakRankings, loadingStreak } = useStreakLeaderboard(currentUser, friends);
+  const challenges = useChallenges(currentUser);
 
   // Listen to friendships
   useEffect(() => {
@@ -559,6 +761,95 @@ export default function CommunityTab({ currentUser }) {
     catch (err) { console.error(err); }
   };
 
+  const sendChallenge = async (friend) => {
+    // Check if either party already has an active challenge (filter from live state)
+    const myActive = challenges.find(c =>
+      c.status === "active" &&
+      (c.challengerId === currentUser.uid || c.opponentId === currentUser.uid)
+    );
+    if (myActive) {
+      alert("You already have an active challenge this week! Finish it before starting another.");
+      return;
+    }
+    // Check opponent's active challenges via a quick Firestore fetch
+    try {
+      const [snap1, snap2] = await Promise.all([
+        getDocs(query(collection(db, "challenges"), where("challengerId", "==", friend.uid), where("status", "==", "active"))),
+        getDocs(query(collection(db, "challenges"), where("opponentId",  "==", friend.uid), where("status", "==", "active"))),
+      ]);
+      if (!snap1.empty || !snap2.empty) {
+        alert(`${friend.displayName || "Your friend"} already has an active challenge this week. Try again next week!`);
+        return;
+      }
+    } catch { /* permission denied is fine — means no active challenge */ }
+
+    // Check for existing pending challenge between these two
+    const alreadyPending = challenges.find(c =>
+      c.status === "pending" &&
+      ((c.challengerId === currentUser.uid && c.opponentId === friend.uid) ||
+       (c.challengerId === friend.uid     && c.opponentId === currentUser.uid))
+    );
+    if (alreadyPending) {
+      alert("There's already a pending challenge between you two!");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "challenges"), {
+        challengerId:   currentUser.uid,
+        challengerName: currentUser.displayName,
+        opponentId:     friend.uid,
+        opponentName:   friend.displayName,
+        status:         "pending",
+        createdAt:      serverTimestamp(),
+      });
+      await addDoc(collection(db, "users", friend.uid, "notifications"), {
+        type:      "challenge",
+        title:     "⚡ You've been challenged!",
+        body:      `${currentUser.displayName || "Someone"} challenged you to a 7-day water saving contest.`,
+        emoji:     "⚡",
+        read:      false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) { console.error("sendChallenge:", err); }
+  };
+
+  const acceptChallenge = async (challenge) => {
+    // Prevent accepting if already in an active challenge
+    const myActive = challenges.find(c =>
+      c.id !== challenge.id &&
+      c.status === "active" &&
+      (c.challengerId === currentUser.uid || c.opponentId === currentUser.uid)
+    );
+    if (myActive) {
+      alert("You already have an active challenge! Finish it first.");
+      return;
+    }
+    try {
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 7);
+      await updateDoc(doc(db, "challenges", challenge.id), {
+        status:    "active",
+        startDate: serverTimestamp(),
+        endDate:   Timestamp.fromDate(endDate),
+      });
+      await addDoc(collection(db, "users", challenge.challengerId, "notifications"), {
+        type:      "challenge_accepted",
+        title:     "Challenge accepted! ⚡",
+        body:      `${currentUser.displayName || "Your friend"} accepted your 7-day water challenge. Game on!`,
+        emoji:     "⚡",
+        read:      false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) { console.error("acceptChallenge:", err); }
+  };
+
+  const declineChallenge = async (challenge) => {
+    try {
+      await updateDoc(doc(db, "challenges", challenge.id), { status: "declined" });
+    } catch (err) { console.error("declineChallenge:", err); }
+  };
+
   return (
     <div className="page">
       <div className="page-header">
@@ -629,17 +920,21 @@ export default function CommunityTab({ currentUser }) {
 
       {/* ── Subtabs ── */}
       <div className="subtab-row">
-        {["friends", "requests", "add"].map((t) => (
-          <button
-            key={t}
-            className={`subtab ${tab === t ? "active" : ""}`}
-            onClick={() => setTab(t)}
-          >
-            {t === "friends"  ? `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` :
-             t === "requests" ? `Requests${incoming.length > 0 ? ` · ${incoming.length}` : ""}` :
-             "Add friend"}
-          </button>
-        ))}
+        {["friends", "challenges", "requests", "add"].map((t) => {
+          const pendingChallenges = challenges.filter(c =>
+            c.status === "pending" && c.opponentId === currentUser.uid
+          ).length;
+          const label =
+            t === "friends"    ? `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` :
+            t === "challenges" ? `Challenges${pendingChallenges > 0 ? ` · ${pendingChallenges}` : ""}` :
+            t === "requests"   ? `Requests${incoming.length > 0 ? ` · ${incoming.length}` : ""}` :
+            "Add friend";
+          return (
+            <button key={t} className={`subtab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Friends list ── */}
@@ -654,6 +949,16 @@ export default function CommunityTab({ currentUser }) {
             <div className="activity-list">
               {friends.map((f) => {
                 const colors = getAvatarColor(f.uid);
+                // Find any existing challenge with this friend
+                const existingChallenge = challenges.find(c =>
+                  (c.challengerId === currentUser.uid && c.opponentId === f.uid) ||
+                  (c.challengerId === f.uid && c.opponentId === currentUser.uid)
+                );
+                const chalBtnLabel =
+                  existingChallenge?.status === "active"  ? "⚡ Active" :
+                  existingChallenge?.status === "pending" ? "⚡ Pending" :
+                  "⚡ Challenge";
+                const chalBtnDisabled = existingChallenge?.status === "active" || existingChallenge?.status === "pending";
                 return (
                   <div className="activity-item" key={f.uid} style={{ alignItems: "center" }}>
                     <Avatar initials={getInitials(f.displayName || f.email)} bg={colors.bg} color={colors.color} />
@@ -661,6 +966,14 @@ export default function CommunityTab({ currentUser }) {
                       <div className="activity-name">{f.displayName || "User"}</div>
                       <div className="activity-detail">{f.email}</div>
                     </div>
+                    <button
+                      className="chal-btn"
+                      onClick={() => { if (!chalBtnDisabled) sendChallenge(f); else setTab("challenges"); }}
+                      style={{ opacity: chalBtnDisabled ? 0.55 : 1 }}
+                      title={chalBtnDisabled ? "View in Challenges tab" : "Challenge to a 7-day contest"}
+                    >
+                      {chalBtnLabel}
+                    </button>
                     <button className="icon-btn" onClick={() => removeFriend(f)} title="Remove friend">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -669,6 +982,35 @@ export default function CommunityTab({ currentUser }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Challenges ── */}
+      {tab === "challenges" && (
+        <div className="section">
+          {challenges.length === 0 ? (
+            <div className="empty-state">
+              <p>No challenges yet.</p>
+              <p>Go to the Friends tab and tap ⚡ Challenge next to a friend to start a 7-day contest!</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Active first, then pending, then the rest */}
+              {[
+                ...challenges.filter(c => c.status === "active"),
+                ...challenges.filter(c => c.status === "pending"),
+                ...challenges.filter(c => c.status !== "active" && c.status !== "pending"),
+              ].map(c => (
+                <ChallengeCard
+                  key={c.id}
+                  challenge={c}
+                  currentUser={currentUser}
+                  onAccept={acceptChallenge}
+                  onDecline={declineChallenge}
+                />
+              ))}
             </div>
           )}
         </div>

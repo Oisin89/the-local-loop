@@ -1377,3 +1377,50 @@ input, textarea, select { font-size: 16px; }
   background: var(--accent-bg);
   color: var(--accent-dark);
 }
+
+/* ─── Challenge card ─────────────────────────────────────────────────────── */
+
+.chal-card {
+  background: var(--bg2);
+  border: 0.5px solid var(--border);
+  border-radius: 16px;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chal-result {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.chal-result.win  { background: rgba(39,174,96,0.12);  color: #1a8a4a; }
+.chal-result.lose { background: rgba(226,75,74,0.1);   color: #c0392b; }
+.chal-result.draw { background: rgba(55,138,221,0.08); color: var(--accent-dark); }
+
+@media (prefers-color-scheme: dark) {
+  .chal-result.win  { color: #4cd88a; }
+  .chal-result.lose { color: #e87070; }
+}
+
+.chal-btn {
+  padding: 6px 11px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.chal-btn:hover {
+  background: var(--accent);
+  color: white;
+}
