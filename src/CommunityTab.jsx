@@ -88,7 +88,7 @@ function CommunityImpactBoard() {
 
   const toComparison = (litres) => {
     if (litres <= 0) return null;
-    if (litres >= 800) return `${Math.round(litres / 800)} bathtubs`;
+    if (litres >= 800) return `${Math.round(litres / 80)} baths`;
     return `${Math.round(litres / 40)} showers`;
   };
 
