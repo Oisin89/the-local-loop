@@ -1789,19 +1789,19 @@ body {
 
 /* Exercising: squash-and-stretch bounce (scale from base) */
 @keyframes mascot-sqstretch {
-  0%   { transform: translateY(0)     scaleX(1)    scaleY(1); }
-  25%  { transform: translateY(-12px) scaleX(0.82) scaleY(1.15); }
-  50%  { transform: translateY(0)     scaleX(1.22) scaleY(0.82); }
-  65%  { transform: translateY(-5px)  scaleX(0.92) scaleY(1.07); }
-  100% { transform: translateY(0)     scaleX(1)    scaleY(1); }
+  0%   { transform: translateY(0)    scaleX(1)    scaleY(1); }
+  25%  { transform: translateY(-8px) scaleX(0.88) scaleY(1.10); }
+  50%  { transform: translateY(0)    scaleX(1.13) scaleY(0.89); }
+  65%  { transform: translateY(-3px) scaleX(0.95) scaleY(1.04); }
+  100% { transform: translateY(0)    scaleX(1)    scaleY(1); }
 }
 
 /* Celebrating: happy side-to-side shimmy */
 @keyframes mascot-shimmy {
   0%, 100% { transform: translateX(0px)  rotate(0deg); }
-  20%      { transform: translateX(-4px) rotate(-6deg); }
-  50%      { transform: translateX(4px)  rotate(6deg); }
-  80%      { transform: translateX(-2px) rotate(-3deg); }
+  20%      { transform: translateX(-3px) rotate(-4deg); }
+  50%      { transform: translateX(3px)  rotate(4deg); }
+  80%      { transform: translateX(-1px) rotate(-2deg); }
 }
 
 /* Over-limit: rapid head shake */

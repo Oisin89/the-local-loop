@@ -282,8 +282,8 @@ function WaterDropMascot({ mood = 'idle' }) {
     flexShrink: 0,
     display: 'block',
     animation:
-      mood === 'exercising'  ? 'mascot-sqstretch 0.55s ease-in-out infinite' :
-      mood === 'celebrating' ? 'mascot-shimmy    0.4s  ease-in-out infinite' :
+      mood === 'exercising'  ? 'mascot-sqstretch 0.85s ease-in-out infinite' :
+      mood === 'celebrating' ? 'mascot-shimmy    0.7s  ease-in-out infinite' :
       mood === 'over'        ? 'mascot-shake     0.3s  ease-in-out infinite' :
       mood === 'drinking'    ? 'mascot-gulp      1.8s  ease-in-out infinite' :
                                'mascot-bob       2.4s  ease-in-out infinite',
@@ -331,7 +331,7 @@ function WaterDropMascot({ mood = 'idle' }) {
         : <circle cx="20" cy="47" r="2.1" fill={strokeColor} />}
       {/* Blink cover: static half-lid for drinking, animated blink otherwise */}
       {halfLidded
-        ? <rect x="15.2" y="42.2" width="7.6" height="4.2" rx="3.8" fill={bodyColor} />
+        ? <rect x="15.2" y="42.2" width="7.6" height="2.4" rx="3.8" fill={bodyColor} />
         : <rect x="15.2" y="42.2" width="7.6" height="0"   rx="3.8" fill={bodyColor}>
             <animate attributeName="height"
               values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
@@ -345,7 +345,7 @@ function WaterDropMascot({ mood = 'idle' }) {
         ? <path d="M 30 46 Q 33 43.5 36 46" fill={strokeColor} />
         : <circle cx="34" cy="47" r="2.1" fill={strokeColor} />}
       {halfLidded
-        ? <rect x="29.2" y="42.2" width="7.6" height="4.2" rx="3.8" fill={bodyColor} />
+        ? <rect x="29.2" y="42.2" width="7.6" height="2.4" rx="3.8" fill={bodyColor} />
         : <rect x="29.2" y="42.2" width="7.6" height="0"   rx="3.8" fill={bodyColor}>
             <animate attributeName="height"
               values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
