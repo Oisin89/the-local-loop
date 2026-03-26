@@ -160,6 +160,34 @@ function CommunityImpactBoard() {
                 </div>
               </div>
             )}
+
+            {/* Monthly community target */}
+            {(() => {
+              const MONTHLY_TARGET = 100000;
+              const saved = Math.max(0, stats.savedVsUK || 0);
+              const pct = Math.min(Math.round((saved / MONTHLY_TARGET) * 100), 100);
+              return (
+                <div className="community-target">
+                  <div className="community-target-header">
+                    <span className="community-target-label">🎯 Monthly community goal</span>
+                    <span className="community-target-progress">
+                      {saved.toLocaleString("en-GB")} / {MONTHLY_TARGET.toLocaleString("en-GB")} L
+                    </span>
+                  </div>
+                  <div className="impact-bar-track">
+                    <div className="impact-bar-fill" style={{
+                      width: `${pct}%`,
+                      background: pct >= 100 ? "#27AE60" : "var(--accent)",
+                    }} />
+                  </div>
+                  <div className="community-target-sub">
+                    {pct >= 100
+                      ? "🎉 Community target reached this month — amazing work!"
+                      : `${pct}% there — ${(MONTHLY_TARGET - saved).toLocaleString("en-GB")} L to go this month`}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div style={{ textAlign: "center", padding: "16px 0", color: "var(--text2)", fontSize: 13 }}>

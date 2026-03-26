@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
-  doc, setDoc, getDoc, updateDoc,
+  doc, setDoc, getDoc, updateDoc, addDoc,
   collection, query, orderBy, limit, onSnapshot,
   serverTimestamp, increment, writeBatch
 } from "firebase/firestore";
@@ -379,6 +379,55 @@ function Gauge({ used, goal, streak = 0 }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Quick Log ────────────────────────────────────────────────────────────────
+
+const QUICK_PRESETS = [
+  { type: "Shower",           emoji: "🚿", litres: 40 },
+  { type: "Toilet flush",     emoji: "🚽", litres: 4  },
+  { type: "Tap running",      emoji: "🚰", litres: 6  },
+  { type: "Dishwasher",       emoji: "🍽️", litres: 12 },
+  { type: "Bath",             emoji: "🛁", litres: 80 },
+];
+
+function QuickLog({ user }) {
+  const [justLogged, setJustLogged] = useState(null);
+
+  const log = async (preset) => {
+    if (!user || justLogged) return;
+    try {
+      await addDoc(collection(db, "users", user.uid, "activities"), {
+        type:      preset.type,
+        litres:    preset.litres,
+        createdAt: serverTimestamp(),
+      });
+      setJustLogged(preset.type);
+      setTimeout(() => setJustLogged(null), 1500);
+    } catch (e) { console.error(e); }
+  };
+
+  return (
+    <div className="section">
+      <div className="section-label">Quick log</div>
+      <div className="quick-log-row">
+        {QUICK_PRESETS.map(p => {
+          const done = justLogged === p.type;
+          return (
+            <button
+              key={p.type}
+              className={`quick-log-btn${done ? " logged" : ""}`}
+              onClick={() => log(p)}
+            >
+              <span className="quick-log-emoji">{done ? "✓" : p.emoji}</span>
+              <span className="quick-log-name">{p.type.split(" ")[0]}</span>
+              <span className="quick-log-litres">{p.litres} L</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1323,6 +1372,8 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
       </div>
 
       <Gauge used={todayTotal} goal={dailyGoal} streak={streak} />
+
+      <QuickLog user={user} />
 
       <DailyChallenge user={user} />
 
