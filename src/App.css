@@ -19,16 +19,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #122843;
-    --bg2: #1c3756;
+    --bg: #0d3d72;
+    --bg2: #1a5290;
     --text: #e2eef8;
     --text2: #7aa3c2;
-    --border: rgba(74,151,232,0.22);
+    --border: rgba(74,151,232,0.25);
     --icon: #7aa3c2;
     --accent: #4A97E8;
     --accent-dark: #96C8F5;
-    --accent-light: #1e5590;
-    --accent-bg: #152f52;
+    --accent-light: #2e6fba;
+    --accent-bg: #1d4d88;
   }
 }
 
@@ -1344,7 +1344,7 @@ input, textarea, select { font-size: 16px; }
 
 @media (prefers-color-scheme: dark) {
   .audit-invite-card {
-    background: linear-gradient(135deg, #152f52 0%, #1a3a5c 100%);
+    background: linear-gradient(135deg, #1d4d88 0%, #1e5290 100%);
     border-color: rgba(74,151,232,0.25);
   }
 }
@@ -1540,7 +1540,7 @@ body {
   background: linear-gradient(160deg, #d0e9fa 0%, #c2ddf6 40%, #b8d4f0 100%);
 }
 @media (prefers-color-scheme: dark) {
-  body { background: linear-gradient(160deg, #0a1e36 0%, #0d2444 40%, #111f38 100%); }
+  body { background: linear-gradient(160deg, #0c3570 0%, #0f4080 40%, #123575 100%); }
 }
 @media (max-width: 768px) {
   body { background: var(--bg); }
@@ -1581,7 +1581,7 @@ body {
 }
 @media (prefers-color-scheme: dark) {
   .tab-bar {
-    background: rgba(14,32,56,0.78);
+    background: rgba(13,58,110,0.82);
     backdrop-filter: blur(24px) saturate(1.6);
     -webkit-backdrop-filter: blur(24px) saturate(1.6);
     border-top: 0.5px solid rgba(74,151,232,0.2);
@@ -1613,7 +1613,7 @@ body {
 }
 @media (prefers-color-scheme: dark) {
   .gauge-card {
-    background: linear-gradient(140deg, #0e2440 0%, #1a3d6b 55%, #1e4a7a 100%);
+    background: linear-gradient(140deg, #103f75 0%, #1e5296 55%, #2260a0 100%);
     border-color: rgba(74,151,232,0.28);
     box-shadow: 0 2px 16px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(74,151,232,0.15) inset;
   }
@@ -1720,7 +1720,7 @@ body {
 }
 @media (prefers-color-scheme: dark) {
   .profile-avatar {
-    background: linear-gradient(135deg, #1e4a78 0%, #1c3a60 100%);
+    background: linear-gradient(135deg, #2260a0 0%, #1e5290 100%);
     box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 2px rgba(74,151,232,0.18);
   }
 }
