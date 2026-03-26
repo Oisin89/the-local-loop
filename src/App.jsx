@@ -262,9 +262,9 @@ function waterEquivalent(litres) {
 }
 
 // ─── WaterDropMascot ──────────────────────────────────────────────────────────
-// Arm animations use SMIL <animateTransform type="rotate" cx cy> so rotation
-// always happens around the shoulder point (0,0 in the shoulder-translated group),
-// with no CSS transform-origin ambiguity.
+// Armless design — all expression through body shape, eyes, and mouth.
+// Body animations applied directly to the <svg> element (HTML context) so
+// CSS transform-origin works reliably without SVG-specific quirks.
 function WaterDropMascot({ mood = 'idle' }) {
   const isOver = mood === 'over';
   const bodyColor   = isOver ? '#E24B4A' : '#378ADD';
@@ -276,19 +276,26 @@ function WaterDropMascot({ mood = 'idle' }) {
     mood === 'celebrating' ? 'M 17 57 Q 26 65 35 57' :
                              'M 20 58 Q 26 63 32 58';
 
-  // Body animation on the svg element itself (no wrapper g)
-  const svgAnim =
-    mood === 'exercising'  ? 'mascot-bounce 0.65s ease-in-out infinite' :
-    mood === 'celebrating' ? 'mascot-jump   0.5s  ease-in-out infinite' :
-    mood === 'over'        ? 'mascot-worry  0.2s  ease-in-out infinite' :
-                             'mascot-bob    2.4s  ease-in-out infinite';
+  // Scale exercising from the base (squash-and-stretch feels grounded)
+  const svgStyle = {
+    overflow: 'visible',
+    flexShrink: 0,
+    display: 'block',
+    animation:
+      mood === 'exercising'  ? 'mascot-sqstretch 0.55s ease-in-out infinite' :
+      mood === 'celebrating' ? 'mascot-shimmy    0.4s  ease-in-out infinite' :
+      mood === 'over'        ? 'mascot-shake     0.3s  ease-in-out infinite' :
+      mood === 'drinking'    ? 'mascot-gulp      1.8s  ease-in-out infinite' :
+                               'mascot-bob       2.4s  ease-in-out infinite',
+    transformOrigin: mood === 'exercising' ? 'center bottom' : 'center center',
+  };
+
+  const halfLidded  = mood === 'drinking';
+  const celebrating = mood === 'celebrating';
 
   return (
-    <svg
-      width="52" height="70" viewBox="0 0 52 70"
-      style={{ overflow: 'visible', flexShrink: 0, display: 'block', animation: svgAnim }}
-      aria-hidden="true"
-    >
+    <svg width="52" height="70" viewBox="0 0 52 70"
+      style={svgStyle} aria-hidden="true">
       <defs>
         <linearGradient id="mgGrad" x1="0.3" y1="0" x2="0.8" y2="1">
           <stop offset="0%" stopColor={bodyLight} />
@@ -296,92 +303,60 @@ function WaterDropMascot({ mood = 'idle' }) {
         </linearGradient>
       </defs>
 
-      {/* ── Left arm — behind body ─────────────────────────────────────────── */}
-      {/* translate moves origin to the shoulder; animateTransform rotates     */}
-      {/* around cx=0 cy=0, which IS the shoulder in this local space.         */}
-      <g transform="translate(7,47)">
-        <path d="M 0 0 Q -3 7 -1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none">
-          {mood === 'exercising' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="0 0 0;-90 0 0;0 0 0" dur="0.65s" repeatCount="indefinite" />
-          )}
-          {mood === 'celebrating' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="-90 0 0;-104 0 0;-90 0 0" dur="0.5s" repeatCount="indefinite" />
-          )}
-          {mood === 'over' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="-15 0 0;-15 0 0" dur="1s" repeatCount="indefinite" />
-          )}
-        </path>
-      </g>
-
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <path d="M 26 2 C 42 16, 46 36, 46 50 A 20 20 0 0 1 6 50 C 6 36, 10 16, 26 2 Z"
         fill="url(#mgGrad)" />
-
-      {/* Gloss highlight */}
       <ellipse cx="34" cy="18" rx="4.5" ry="6.5"
         fill="rgba(255,255,255,0.22)" transform="rotate(-22 34 18)" />
 
-      {/* ── Right arm — in front of body ──────────────────────────────────── */}
-      <g transform="translate(45,47)">
-        {/* The arm path + cup share one g so the cup follows the arm rotation */}
-        <g>
-          <path d="M 0 0 Q 3 7 1 14" stroke={bodyColor} strokeWidth="5" strokeLinecap="round" fill="none" />
-          {mood === 'drinking' && (
-            <g transform="translate(1,14)">
-              <rect x="-5.5" y="-9" width="11" height="10" rx="2" fill="white" opacity="0.92" />
-              <rect x="-4"   y="-7" width="8"  height="5"  rx="1" fill="#AED6F1" opacity="0.8" />
-            </g>
-          )}
-          {mood === 'exercising' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="90 0 0;0 0 0;90 0 0" dur="0.65s" repeatCount="indefinite" />
-          )}
-          {mood === 'celebrating' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="90 0 0;104 0 0;90 0 0" dur="0.5s" repeatCount="indefinite" />
-          )}
-          {mood === 'drinking' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="72 0 0;81 0 0;72 0 0" dur="2s" repeatCount="indefinite" />
-          )}
-          {mood === 'over' && (
-            <animateTransform attributeName="transform" type="rotate"
-              values="15 0 0;15 0 0" dur="1s" repeatCount="indefinite" />
-          )}
-        </g>
-      </g>
+      {/* ── Drinking: bubbles rising inside body ──────────────────────────── */}
+      {mood === 'drinking' && (
+        <>
+          <circle cx="22" cy="50" r="2" fill="rgba(255,255,255,0.4)">
+            <animate attributeName="cy"      values="50;28;50" dur="1.6s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.7;0;0.7" dur="1.6s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="30" cy="50" r="1.5" fill="rgba(255,255,255,0.35)">
+            <animate attributeName="cy"      values="50;32;50" dur="1.6s" begin="0.55s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.6;0;0.6" dur="1.6s" begin="0.55s" repeatCount="indefinite" />
+          </circle>
+        </>
+      )}
 
       {/* ── Face ──────────────────────────────────────────────────────────── */}
       {/* Left eye */}
       <circle cx="19" cy="46" r="3.8" fill="white" />
-      {mood === 'celebrating'
+      {celebrating
         ? <path d="M 16 46 Q 19 43.5 22 46" fill={strokeColor} />
         : <circle cx="20" cy="47" r="2.1" fill={strokeColor} />}
-      {/* Blink cover — SMIL height animation, both eyes same timing */}
-      <rect x="15.2" y="42.2" width="7.6" height="0" rx="3.8" fill={bodyColor}>
-        <animate attributeName="height"
-          values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
-          dur="3s" repeatCount="indefinite" />
-      </rect>
+      {/* Blink cover: static half-lid for drinking, animated blink otherwise */}
+      {halfLidded
+        ? <rect x="15.2" y="42.2" width="7.6" height="4.2" rx="3.8" fill={bodyColor} />
+        : <rect x="15.2" y="42.2" width="7.6" height="0"   rx="3.8" fill={bodyColor}>
+            <animate attributeName="height"
+              values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
+              dur="3s" repeatCount="indefinite" />
+          </rect>
+      }
 
       {/* Right eye */}
       <circle cx="33" cy="46" r="3.8" fill="white" />
-      {mood === 'celebrating'
+      {celebrating
         ? <path d="M 30 46 Q 33 43.5 36 46" fill={strokeColor} />
         : <circle cx="34" cy="47" r="2.1" fill={strokeColor} />}
-      <rect x="29.2" y="42.2" width="7.6" height="0" rx="3.8" fill={bodyColor}>
-        <animate attributeName="height"
-          values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
-          dur="3s" repeatCount="indefinite" />
-      </rect>
+      {halfLidded
+        ? <rect x="29.2" y="42.2" width="7.6" height="4.2" rx="3.8" fill={bodyColor} />
+        : <rect x="29.2" y="42.2" width="7.6" height="0"   rx="3.8" fill={bodyColor}>
+            <animate attributeName="height"
+              values="0;0;7.6;0;0" keyTimes="0;0.8;0.86;0.92;1"
+              dur="3s" repeatCount="indefinite" />
+          </rect>
+      }
 
       {/* Mouth */}
       <path d={mouthD} stroke={strokeColor} strokeWidth="2" fill="none" strokeLinecap="round" />
 
-      {/* ── Celebrating extras ─────────────────────────────────────────────── */}
+      {/* ── Celebrating: sparkles ─────────────────────────────────────────── */}
       {mood === 'celebrating' && (
         <>
           <text x="42" y="18" fontSize="11" style={{ animation: 'mascot-sparkle 0.5s ease-in-out infinite' }}>✨</text>

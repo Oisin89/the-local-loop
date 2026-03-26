@@ -1773,64 +1773,44 @@ body {
 /* ─── Mascot animations ──────────────────────────────────────────────────── */
 
 /* Idle float */
+/* Idle: gentle float */
 @keyframes mascot-bob {
   0%, 100% { transform: translateY(0px); }
   50%       { transform: translateY(-5px); }
 }
 
-/* Exercising bounce (fast, slight squash-stretch) */
-@keyframes mascot-bounce {
-  0%, 100% { transform: translateY(0px) scaleX(1) scaleY(1); }
-  45%, 55% { transform: translateY(-9px) scaleX(1.06) scaleY(0.93); }
+/* Drinking: slow gulp squish — wiggles wider then taller */
+@keyframes mascot-gulp {
+  0%, 100% { transform: scaleX(1)    scaleY(1); }
+  25%      { transform: scaleX(1.13) scaleY(0.90); }
+  55%      { transform: scaleX(0.91) scaleY(1.07); }
+  75%      { transform: scaleX(1.04) scaleY(0.98); }
 }
 
-/* Celebrating jump */
-@keyframes mascot-jump {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-10px); }
+/* Exercising: squash-and-stretch bounce (scale from base) */
+@keyframes mascot-sqstretch {
+  0%   { transform: translateY(0)     scaleX(1)    scaleY(1); }
+  25%  { transform: translateY(-12px) scaleX(0.82) scaleY(1.15); }
+  50%  { transform: translateY(0)     scaleX(1.22) scaleY(0.82); }
+  65%  { transform: translateY(-5px)  scaleX(0.92) scaleY(1.07); }
+  100% { transform: translateY(0)     scaleX(1)    scaleY(1); }
 }
 
-/* Over-limit tremble */
-@keyframes mascot-worry {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  25%       { transform: translateX(-2px) rotate(-3deg); }
-  75%       { transform: translateX(2px) rotate(3deg); }
+/* Celebrating: happy side-to-side shimmy */
+@keyframes mascot-shimmy {
+  0%, 100% { transform: translateX(0px)  rotate(0deg); }
+  20%      { transform: translateX(-4px) rotate(-6deg); }
+  50%      { transform: translateX(4px)  rotate(6deg); }
+  80%      { transform: translateX(-2px) rotate(-3deg); }
 }
 
-/* Eye blink */
-@keyframes mascot-blink {
-  0%, 86%, 100% { transform: scaleY(1); }
-  91%           { transform: scaleY(0.08); }
-}
-
-/* Jumping jacks — left arm (down → up, alternates with right) */
-@keyframes mascot-jacks-l {
-  0%, 100% { transform: rotate(0deg); }
-  50%      { transform: rotate(-90deg); }
-}
-
-/* Jumping jacks — right arm (up → down, opposite phase) */
-@keyframes mascot-jacks-r {
-  0%, 100% { transform: rotate(90deg); }
-  50%      { transform: rotate(0deg); }
-}
-
-/* Drinking — right arm held raised, gentle tip-up for the sip */
-@keyframes mascot-drink {
-  0%, 100% { transform: rotate(72deg); }
-  40%, 60% { transform: rotate(81deg); }
-}
-
-/* Celebrating — left arm waves (raised, oscillates) */
-@keyframes mascot-celeb-l {
-  0%, 100% { transform: rotate(-90deg); }
-  50%      { transform: rotate(-102deg); }
-}
-
-/* Celebrating — right arm waves (raised, oscillates) */
-@keyframes mascot-celeb-r {
-  0%, 100% { transform: rotate(90deg); }
-  50%      { transform: rotate(102deg); }
+/* Over-limit: rapid head shake */
+@keyframes mascot-shake {
+  0%, 100% { transform: translateX(0px); }
+  20%      { transform: translateX(-4px); }
+  40%      { transform: translateX(4px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(3px); }
 }
 
 /* Sparkles for celebrating */
