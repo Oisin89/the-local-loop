@@ -45,6 +45,189 @@ function getAvatarColor(uid) {
   return AVATAR_COLORS[idx];
 }
 
+// ─── Community Vote ───────────────────────────────────────────────────────────
+
+const POLL_ID = "tolworth_2026_strategy";
+
+const POLL = {
+  question: "How should Tolworth prioritise its 2026 water conservation strategy?",
+  closes: "31 Dec 2026",
+  options: [
+    { id: "smart_meters",    label: "Roll out smart meters to all Tolworth homes by 2027",        color: "#4A97E8" },
+    { id: "rainwater",       label: "Expand rainwater harvesting in parks & green spaces",          color: "#27AE60" },
+    { id: "leak_detection",  label: "Council-funded leak detection programme for households",       color: "#7C63D4" },
+    { id: "greywater",       label: "Launch a greywater reuse pilot on local estates",              color: "#E8832A" },
+    { id: "pipe_infra",      label: "Replace ageing pipe infrastructure on Kingston Road corridor", color: "#E24B4A" },
+  ],
+};
+
+function CommunityVote({ currentUser }) {
+  const [voteCounts,  setVoteCounts]  = useState({});
+  const [totalVotes,  setTotalVotes]  = useState(0);
+  const [myVote,      setMyVote]      = useState(null);   // optionId or null
+  const [loadingVote, setLoadingVote] = useState(true);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [showResults, setShowResults] = useState(false);
+
+  // Live poll counts
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "polls", POLL_ID), snap => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setVoteCounts(data.voteCounts || {});
+        setTotalVotes(data.totalVotes  || 0);
+      } else {
+        // Seed doc on first load
+        setDoc(doc(db, "polls", POLL_ID), {
+          question:   POLL.question,
+          totalVotes: 0,
+          voteCounts: Object.fromEntries(POLL.options.map(o => [o.id, 0])),
+          createdAt:  serverTimestamp(),
+        }).catch(() => {});
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Check if current user has already voted
+  useEffect(() => {
+    if (!currentUser) return;
+    getDoc(doc(db, "polls", POLL_ID, "votes", currentUser.uid)).then(snap => {
+      if (snap.exists()) {
+        setMyVote(snap.data().optionId);
+        setShowResults(true);
+      }
+      setLoadingVote(false);
+    }).catch(() => setLoadingVote(false));
+  }, [currentUser]);
+
+  const castVote = async (optionId) => {
+    if (submitting || myVote) return;
+    setSubmitting(true);
+    try {
+      // Write user's vote doc
+      await setDoc(doc(db, "polls", POLL_ID, "votes", currentUser.uid), {
+        optionId,
+        votedAt: serverTimestamp(),
+      });
+      // Increment counts on poll doc
+      await updateDoc(doc(db, "polls", POLL_ID), {
+        [`voteCounts.${optionId}`]: increment(1),
+        totalVotes: increment(1),
+      });
+      setMyVote(optionId);
+      setShowResults(true);
+    } catch (err) {
+      console.error("castVote:", err);
+    }
+    setSubmitting(false);
+  };
+
+  const getPct = (optionId) => {
+    if (totalVotes === 0) return 0;
+    return Math.round(((voteCounts[optionId] || 0) / totalVotes) * 100);
+  };
+
+  const leading = totalVotes > 0
+    ? POLL.options.reduce((best, o) =>
+        (voteCounts[o.id] || 0) > (voteCounts[best.id] || 0) ? o : best
+      , POLL.options[0])
+    : null;
+
+  return (
+    <div className="section">
+      <div className="section-label">Community vote · Tolworth 2026</div>
+      <div className="vote-card">
+        {/* Header */}
+        <div className="vote-header">
+          <div className="vote-badge">LIVE POLL</div>
+          <span className="vote-closes">Closes {POLL.closes}</span>
+        </div>
+
+        <div className="vote-question">{POLL.question}</div>
+
+        {loadingVote ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text2)", fontSize: 13 }}>
+            Loading poll…
+          </div>
+        ) : !showResults ? (
+          /* ── Voting state ── */
+          <div className="vote-options">
+            {POLL.options.map(opt => (
+              <button
+                key={opt.id}
+                className={`vote-option${submitting ? " disabled" : ""}`}
+                style={{ "--opt-color": opt.color }}
+                onClick={() => castVote(opt.id)}
+                disabled={submitting}
+              >
+                <span className="vote-option-dot" style={{ background: opt.color }} />
+                <span className="vote-option-label">{opt.label}</span>
+                <svg className="vote-option-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            ))}
+            <div className="vote-footer">
+              <span className="vote-total">{totalVotes} vote{totalVotes !== 1 ? "s" : ""} so far</span>
+              <button className="vote-peek-btn" onClick={() => setShowResults(true)}>See results</button>
+            </div>
+          </div>
+        ) : (
+          /* ── Results state ── */
+          <div className="vote-results">
+            {POLL.options.map(opt => {
+              const pct   = getPct(opt.id);
+              const count = voteCounts[opt.id] || 0;
+              const isMe  = myVote === opt.id;
+              const isTop = leading && opt.id === leading.id && totalVotes > 0;
+              return (
+                <div key={opt.id} className={`vote-result-row${isMe ? " my-vote" : ""}`}>
+                  <div className="vote-result-header">
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0 }}>
+                      {isMe && (
+                        <span className="vote-you-badge">Your vote</span>
+                      )}
+                      {isTop && !isMe && (
+                        <span className="vote-leading-badge">Leading</span>
+                      )}
+                      <span className="vote-result-label" style={{ color: isMe ? opt.color : "var(--text)" }}>
+                        {opt.label}
+                      </span>
+                    </div>
+                    <span className="vote-result-pct" style={{ color: isMe || isTop ? opt.color : "var(--text2)" }}>
+                      {pct}%
+                    </span>
+                  </div>
+                  <div className="vote-bar-track">
+                    <div
+                      className="vote-bar-fill"
+                      style={{
+                        width: `${pct}%`,
+                        background: opt.color,
+                        opacity: isMe || isTop ? 1 : 0.45,
+                      }}
+                    />
+                  </div>
+                  <span className="vote-count-lbl">{count} vote{count !== 1 ? "s" : ""}</span>
+                </div>
+              );
+            })}
+
+            <div className="vote-footer">
+              <span className="vote-total">{totalVotes} total vote{totalVotes !== 1 ? "s" : ""}</span>
+              {!myVote && (
+                <button className="vote-peek-btn" onClick={() => setShowResults(false)}>Back to vote</button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Community Impact Board ───────────────────────────────────────────────────
 
 function CommunityImpactBoard() {
@@ -909,6 +1092,9 @@ export default function CommunityTab({ currentUser }) {
 
       {/* ── Community Impact Board ── */}
       <CommunityImpactBoard />
+
+      {/* ── Community Vote ── */}
+      <CommunityVote currentUser={currentUser} />
 
       {/* ── Active challenge (pinned below impact board) ── */}
       {(() => {
