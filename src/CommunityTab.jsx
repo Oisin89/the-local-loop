@@ -51,7 +51,7 @@ const POLL_ID = "tolworth_2026_strategy";
 
 const POLL = {
   question: "How should Tolworth prioritise its 2026 water conservation strategy?",
-  closes: "31 Dec 2026",
+  closes: "31 Aug 2026",
   options: [
     { id: "smart_meters",    label: "Roll out smart meters to all Tolworth homes by 2027",        color: "#4A97E8" },
     { id: "rainwater",       label: "Expand rainwater harvesting in parks & green spaces",          color: "#27AE60" },
@@ -62,59 +62,44 @@ const POLL = {
 };
 
 function CommunityVote({ currentUser }) {
-  const [voteCounts,  setVoteCounts]  = useState({});
-  const [totalVotes,  setTotalVotes]  = useState(0);
-  const [myVote,      setMyVote]      = useState(null);   // optionId or null
+  // voteCounts computed live from the votes subcollection — no writes to the
+  // poll doc needed, so security rules only cover users writing their own vote.
+  const [allVotes,    setAllVotes]    = useState([]);   // [{optionId, uid}]
+  const [myVote,      setMyVote]      = useState(null);
   const [loadingVote, setLoadingVote] = useState(true);
   const [submitting,  setSubmitting]  = useState(false);
   const [showResults, setShowResults] = useState(false);
 
-  // Live poll counts
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "polls", POLL_ID), snap => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setVoteCounts(data.voteCounts || {});
-        setTotalVotes(data.totalVotes  || 0);
-      } else {
-        // Seed doc on first load
-        setDoc(doc(db, "polls", POLL_ID), {
-          question:   POLL.question,
-          totalVotes: 0,
-          voteCounts: Object.fromEntries(POLL.options.map(o => [o.id, 0])),
-          createdAt:  serverTimestamp(),
-        }).catch(() => {});
-      }
-    });
-    return unsub;
-  }, []);
-
-  // Check if current user has already voted
+  // Live listener on the votes subcollection — derives all counts client-side
   useEffect(() => {
     if (!currentUser) return;
-    getDoc(doc(db, "polls", POLL_ID, "votes", currentUser.uid)).then(snap => {
-      if (snap.exists()) {
-        setMyVote(snap.data().optionId);
-        setShowResults(true);
-      }
-      setLoadingVote(false);
-    }).catch(() => setLoadingVote(false));
+    const unsub = onSnapshot(
+      collection(db, "polls", POLL_ID, "votes"),
+      snap => {
+        const votes = snap.docs.map(d => ({ uid: d.id, optionId: d.data().optionId }));
+        setAllVotes(votes);
+        const mine = votes.find(v => v.uid === currentUser.uid);
+        if (mine) {
+          setMyVote(mine.optionId);
+          setShowResults(true);
+        }
+        setLoadingVote(false);
+      },
+      () => setLoadingVote(false)   // permission error — degrade gracefully
+    );
+    return unsub;
   }, [currentUser]);
 
   const castVote = async (optionId) => {
     if (submitting || myVote) return;
     setSubmitting(true);
     try {
-      // Write user's vote doc
+      // Only write the user's own vote doc — no poll totals doc update needed
       await setDoc(doc(db, "polls", POLL_ID, "votes", currentUser.uid), {
         optionId,
         votedAt: serverTimestamp(),
       });
-      // Increment counts on poll doc
-      await updateDoc(doc(db, "polls", POLL_ID), {
-        [`voteCounts.${optionId}`]: increment(1),
-        totalVotes: increment(1),
-      });
+      // Optimistic local update (the snapshot listener will confirm shortly)
       setMyVote(optionId);
       setShowResults(true);
     } catch (err) {
@@ -123,14 +108,21 @@ function CommunityVote({ currentUser }) {
     setSubmitting(false);
   };
 
+  // Derive counts and totals from the live votes array
+  const voteCounts = POLL.options.reduce((acc, o) => {
+    acc[o.id] = allVotes.filter(v => v.optionId === o.id).length;
+    return acc;
+  }, {});
+  const totalVotes = allVotes.length;
+
   const getPct = (optionId) => {
     if (totalVotes === 0) return 0;
-    return Math.round(((voteCounts[optionId] || 0) / totalVotes) * 100);
+    return Math.round((voteCounts[optionId] / totalVotes) * 100);
   };
 
   const leading = totalVotes > 0
     ? POLL.options.reduce((best, o) =>
-        (voteCounts[o.id] || 0) > (voteCounts[best.id] || 0) ? o : best
+        voteCounts[o.id] > voteCounts[best.id] ? o : best
       , POLL.options[0])
     : null;
 
