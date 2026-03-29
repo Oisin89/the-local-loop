@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection, collectionGroup, query, where, getDocs, addDoc,
   deleteDoc, doc, onSnapshot, getDoc, setDoc, serverTimestamp,
-  Timestamp, updateDoc
+  Timestamp, updateDoc, increment
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -464,6 +464,7 @@ function ChallengeCard({ challenge, currentUser, onAccept, onDecline }) {
   const [theirTotal, setTheirTotal] = useState(null);
   const [myDays,     setMyDays]     = useState(0);
   const [loadingStats, setLoadingStats] = useState(false);
+  const winRecordedRef = useRef(false);
 
   const isActive = challenge.status === "active";
   const endDate  = challenge.endDate?.toDate?.();
@@ -511,15 +512,28 @@ function ChallengeCard({ challenge, currentUser, onAccept, onDecline }) {
       resultText = "Insufficient data. Both users need at least 3 days of logging.";
     } else if (myTotal < theirTotal) {
       winner = "me";
-      resultText = `🎉 You win! You used ${myTotal} L vs their ${theirTotal} L.`;
+      resultText = `You win! You used ${myTotal} L vs their ${theirTotal} L.`;
     } else if (theirTotal < myTotal) {
       winner = "them";
       resultText = `${shortName(theirName)} wins. They used ${theirTotal} L vs your ${myTotal} L. Keep going!`;
     } else {
       winner = "draw";
-      resultText = `🤝 It's a draw! Both used ${myTotal} L. Great effort from both sides.`;
+      resultText = `It's a draw! Both used ${myTotal} L. Great effort from both sides.`;
     }
   }
+
+  // Record win in Firestore once (idempotent via ref guard)
+  useEffect(() => {
+    if (winner !== "me" || winRecordedRef.current) return;
+    const alreadyWon = challenge.winRecorded?.[currentUser.uid];
+    if (alreadyWon) { winRecordedRef.current = true; return; }
+    winRecordedRef.current = true;
+    // Write increment to user's challengeWins + mark on challenge doc
+    updateDoc(doc(db, "users", currentUser.uid), { challengeWins: increment(1) }).catch(() => {});
+    updateDoc(doc(db, "challenges", challenge.id), {
+      [`winRecorded.${currentUser.uid}`]: true,
+    }).catch(() => {});
+  }, [winner]);
 
   const statusLabel = isPast ? "Challenge ended" :
     isActive         ? "Active challenge" :

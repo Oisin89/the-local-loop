@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   doc, setDoc, getDoc, updateDoc, addDoc,
-  collection, query, orderBy, limit, onSnapshot,
+  collection, collectionGroup, query, orderBy, limit, onSnapshot, getDocs,
   serverTimestamp, increment, writeBatch
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -238,6 +238,56 @@ export const BADGE_DEFS = [
     emoji: "💡",
     color: "#7C63D4",
     check: ({ quizCorrectCount }) => quizCorrectCount >= 7,
+  },
+  // ── Community goal badges ─────────────────────────────────────────────────
+  {
+    id: "community_starter",
+    name: "Community Starter",
+    desc: "Help the Tolworth community reach 10% of the monthly savings goal",
+    emoji: "🌍",
+    color: "#27AE60",
+    check: ({ communityGoalPct }) => communityGoalPct >= 10,
+  },
+  {
+    id: "community_halfway",
+    name: "Halfway Hero",
+    desc: "Help the community reach 50% of the monthly savings goal",
+    emoji: "🌿",
+    color: "#27AE60",
+    check: ({ communityGoalPct }) => communityGoalPct >= 50,
+  },
+  {
+    id: "community_champion",
+    name: "Community Champion",
+    desc: "The community hit its monthly conservation goal — you helped!",
+    emoji: "🏅",
+    color: "#C9A30A",
+    check: ({ communityGoalPct }) => communityGoalPct >= 100,
+  },
+  // ── Friend challenge win badges ───────────────────────────────────────────
+  {
+    id: "challenge_win_1",
+    name: "First Victory",
+    desc: "Win your first weekly friends challenge",
+    emoji: "🥇",
+    color: "#C9A822",
+    check: ({ challengeWins }) => (challengeWins || 0) >= 1,
+  },
+  {
+    id: "challenge_win_3",
+    name: "Hat-trick",
+    desc: "Win 3 weekly friends challenges",
+    emoji: "🎖️",
+    color: "#E8832A",
+    check: ({ challengeWins }) => (challengeWins || 0) >= 3,
+  },
+  {
+    id: "challenge_win_5",
+    name: "Unbeatable",
+    desc: "Win 5 weekly friends challenges",
+    emoji: "👑",
+    color: "#C9A30A",
+    check: ({ challengeWins }) => (challengeWins || 0) >= 5,
   },
 ];
 
@@ -1378,12 +1428,36 @@ function HouseholdAuditPopup({ user, onComplete }) {
   );
 }
 
+// ─── Smart Meter Popup ────────────────────────────────────────────────────────
+
+function SmartMeterPopup({ onClose }) {
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="smart-meter-popup" onClick={e => e.stopPropagation()}>
+        <div className="smart-meter-icon">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C9A30A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <div className="smart-meter-title">Smart Water Meter</div>
+        <p className="smart-meter-body">
+          In future I would like to develop connectivity to smart water meter systems in homes to facilitate automatic water logging.
+        </p>
+        <button className="smart-meter-dismiss" onClick={onClose}>Dismiss</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings Popup ───────────────────────────────────────────────────────────
 
-function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
-  const [editingGoal, setEditingGoal] = useState(false);
-  const [goalInput, setGoalInput]     = useState(dailyGoal);
-  const [saving, setSaving]           = useState(false);
+function SettingsPopup({ user, dailyGoal, onGoalChange, notificationsEnabled, units, householdSize, onClose }) {
+  const [editingGoal,    setEditingGoal]    = useState(false);
+  const [goalInput,      setGoalInput]      = useState(dailyGoal);
+  const [saving,         setSaving]         = useState(false);
+  const [editingSize,    setEditingSize]    = useState(false);
+  const [sizeInput,      setSizeInput]      = useState(householdSize);
+  const [showSmartMeter, setShowSmartMeter] = useState(false);
 
   const handleSignOut = () => { signOut(auth); onClose(); };
 
@@ -1397,56 +1471,98 @@ function SettingsPopup({ user, dailyGoal, onGoalChange, onClose }) {
     setEditingGoal(false);
   };
 
+  const toggleNotifications = async () => {
+    const next = !notificationsEnabled;
+    await updateDoc(doc(db, "users", user.uid), { notificationsEnabled: next });
+  };
+
+  const toggleUnits = async () => {
+    const next = units === "litres" ? "gallons" : "litres";
+    await updateDoc(doc(db, "users", user.uid), { units: next });
+  };
+
+  const saveHouseholdSize = async () => {
+    const val = parseInt(sizeInput);
+    if (!val || val < 1 || val > 20) return;
+    await updateDoc(doc(db, "users", user.uid), { householdSize: val });
+    setEditingSize(false);
+  };
+
   return (
-    <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-sheet" onClick={e => e.stopPropagation()}>
-        <div className="settings-sheet-handle" />
-        <div className="settings-sheet-header">
-          <span className="settings-sheet-title">Settings</span>
-          <button className="settings-close-btn" onClick={onClose}>✕</button>
-        </div>
-        <div style={{ padding: "0 20px 8px" }}>
-          <div className="card-block">
-            <div className="pref-row" onClick={() => { setEditingGoal(true); setGoalInput(dailyGoal); }}>
-              <span className="pref-label">Daily goal</span>
-              {editingGoal ? (
-                <div className="goal-edit-row" onClick={e => e.stopPropagation()}>
-                  <input
-                    className="goal-input"
-                    type="number"
-                    value={goalInput}
-                    onChange={e => setGoalInput(e.target.value)}
-                    autoFocus
-                  />
-                  <span className="litres-unit">L</span>
-                  <button className="goal-save-btn" onClick={saveGoal} disabled={saving}>
-                    {saving ? "…" : "Save"}
-                  </button>
-                  <button className="goal-cancel-btn" onClick={() => setEditingGoal(false)}>Cancel</button>
-                </div>
-              ) : (
-                <span className="pref-val">{dailyGoal} L ›</span>
-              )}
-            </div>
-            <div className="pref-row">
-              <span className="pref-label">Notifications</span>
-              <span className="pref-val">On ›</span>
-            </div>
-            <div className="pref-row">
-              <span className="pref-label">Units</span>
-              <span className="pref-val">Litres ›</span>
-            </div>
-            <div className="pref-row">
-              <span className="pref-label">Household size</span>
-              <span className="pref-val">2 people ›</span>
-            </div>
+    <>
+      <div className="settings-overlay" onClick={onClose}>
+        <div className="settings-sheet" onClick={e => e.stopPropagation()}>
+          <div className="settings-sheet-handle" />
+          <div className="settings-sheet-header">
+            <span className="settings-sheet-title">Settings</span>
+            <button className="settings-close-btn" onClick={onClose}>✕</button>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <button className="signout-btn" onClick={handleSignOut}>Sign out</button>
+          <div style={{ padding: "0 20px 8px" }}>
+            <div className="card-block">
+              {/* Daily goal */}
+              <div className="pref-row" onClick={() => { setEditingGoal(true); setGoalInput(dailyGoal); }}>
+                <span className="pref-label">Daily goal</span>
+                {editingGoal ? (
+                  <div className="goal-edit-row" onClick={e => e.stopPropagation()}>
+                    <input className="goal-input" type="number" value={goalInput} onChange={e => setGoalInput(e.target.value)} autoFocus />
+                    <span className="litres-unit">L</span>
+                    <button className="goal-save-btn" onClick={saveGoal} disabled={saving}>{saving ? "…" : "Save"}</button>
+                    <button className="goal-cancel-btn" onClick={() => setEditingGoal(false)}>Cancel</button>
+                  </div>
+                ) : (
+                  <span className="pref-val">{dailyGoal} L ›</span>
+                )}
+              </div>
+
+              {/* Notifications toggle */}
+              <div className="pref-row" onClick={toggleNotifications} style={{ cursor: "pointer" }}>
+                <span className="pref-label">Notifications</span>
+                <div className={`pref-toggle${notificationsEnabled ? " on" : ""}`}>
+                  <div className="pref-toggle-thumb" />
+                </div>
+              </div>
+
+              {/* Units */}
+              <div className="pref-row" onClick={toggleUnits} style={{ cursor: "pointer" }}>
+                <span className="pref-label">Units</span>
+                <span className="pref-val">{units === "litres" ? "Litres ›" : "Gallons ›"}</span>
+              </div>
+
+              {/* Household size */}
+              <div className="pref-row" onClick={() => { setEditingSize(true); setSizeInput(householdSize); }}>
+                <span className="pref-label">Household size</span>
+                {editingSize ? (
+                  <div className="goal-edit-row" onClick={e => e.stopPropagation()}>
+                    <button className="size-step-btn" onClick={() => setSizeInput(v => Math.max(1, parseInt(v) - 1))}>−</button>
+                    <span className="size-val">{sizeInput}</span>
+                    <button className="size-step-btn" onClick={() => setSizeInput(v => Math.min(20, parseInt(v) + 1))}>+</button>
+                    <button className="goal-save-btn" onClick={saveHouseholdSize}>Save</button>
+                    <button className="goal-cancel-btn" onClick={() => setEditingSize(false)}>Cancel</button>
+                  </div>
+                ) : (
+                  <span className="pref-val">{householdSize} {householdSize === 1 ? "person" : "people"} ›</span>
+                )}
+              </div>
+            </div>
+
+            {/* Smart Water Meter button */}
+            <div style={{ marginTop: 14 }}>
+              <button className="smart-meter-btn" onClick={e => { e.stopPropagation(); setShowSmartMeter(true); }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                Connect to Smart Water Meter
+              </button>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <button className="signout-btn" onClick={handleSignOut}>Sign out</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      {showSmartMeter && <SmartMeterPopup onClose={() => setShowSmartMeter(false)} />}
+    </>
   );
 }
 
@@ -1647,7 +1763,12 @@ export default function App() {
   const [dailyGoal,            setDailyGoal]            = useState(150);
   const [activities,           setActivities]           = useState([]);
   const [challengesCompleted,  setChallengesCompleted]  = useState(0);
+  const [challengeWins,        setChallengeWins]        = useState(0);
   const [quizCorrectCount,     setQuizCorrectCount]     = useState(0);
+  const [communityGoalPct,     setCommunityGoalPct]     = useState(0);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [units,                setUnits]                = useState("litres");
+  const [householdSize,        setHouseholdSize]        = useState(2);
   const [showSettings,         setShowSettings]         = useState(false);
   const [notifications,        setNotifications]        = useState([]);
   const [showNotifications,    setShowNotifications]    = useState(false);
@@ -1681,8 +1802,12 @@ export default function App() {
       const data = snap.data();
       if (data.dailyGoal)                    setDailyGoal(data.dailyGoal);
       if (data.challengesCompleted != null)  setChallengesCompleted(data.challengesCompleted);
+      if (data.challengeWins != null)        setChallengeWins(data.challengeWins);
       if (data.quizCorrectCount != null)     setQuizCorrectCount(data.quizCorrectCount);
       if (data.auditCompleted != null)       setAuditCompleted(data.auditCompleted);
+      if (data.notificationsEnabled != null) setNotificationsEnabled(data.notificationsEnabled);
+      if (data.units != null)                setUnits(data.units);
+      if (data.householdSize != null)        setHouseholdSize(data.householdSize);
     });
     return unsub;
   }, [user]);
@@ -1698,6 +1823,30 @@ export default function App() {
       setActivities(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return unsub;
+  }, [user]);
+
+  // Community goal pct — fetched once per session
+  useEffect(() => {
+    if (!user) return;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const MONTHLY_TARGET = 100000;
+    getDocs(collectionGroup(db, "activities")).then(snap => {
+      const thisDocs = snap.docs.filter(d => {
+        const ts = d.data().createdAt;
+        if (!ts) return false;
+        const date = ts.toDate ? ts.toDate() : new Date(ts);
+        return date >= monthStart;
+      });
+      const totalLitres = thisDocs.reduce((s, d) => s + (d.data().litres || 0), 0);
+      const userIds = new Set(thisDocs.map(d => d.ref.parent.parent.id));
+      const activeUsers = userIds.size;
+      const daysElapsed = Math.max(1, now.getDate());
+      const ukAvgTotal = 150 * activeUsers * daysElapsed;
+      const savedVsUK = Math.max(0, ukAvgTotal - totalLitres);
+      const pct = Math.min(Math.round((savedVsUK / MONTHLY_TARGET) * 100), 100);
+      setCommunityGoalPct(pct);
+    }).catch(() => {});
   }, [user]);
 
   // Notifications listener
@@ -1718,9 +1867,9 @@ export default function App() {
   const earnedBadgeIds = useMemo(() => {
     const streak = computeStreak(activities, dailyGoal);
     return BADGE_DEFS
-      .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted, quizCorrectCount }))
+      .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted, challengeWins, quizCorrectCount, communityGoalPct }))
       .map(b => b.id);
-  }, [activities, dailyGoal, challengesCompleted, quizCorrectCount]);
+  }, [activities, dailyGoal, challengesCompleted, challengeWins, quizCorrectCount, communityGoalPct]);
 
   // Badge notification generator — runs after earnedBadgeIds is computed
   useEffect(() => {
@@ -1791,6 +1940,9 @@ export default function App() {
             user={user}
             dailyGoal={dailyGoal}
             onGoalChange={setDailyGoal}
+            notificationsEnabled={notificationsEnabled}
+            units={units}
+            householdSize={householdSize}
             onClose={() => setShowSettings(false)}
           />
         )}

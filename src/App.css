@@ -1112,6 +1112,139 @@ input, textarea, select { font-size: 16px; }
   cursor: pointer;
 }
 
+/* ─── Settings: toggle switch ───────────────────────────────────────────── */
+
+.pref-toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.pref-toggle.on {
+  background: var(--accent);
+}
+.pref-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.pref-toggle.on .pref-toggle-thumb {
+  transform: translateX(18px);
+}
+
+/* ─── Settings: household size stepper ─────────────────────────────────── */
+
+.size-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 0.5px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.size-step-btn:hover { background: var(--accent-bg); }
+
+.size-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 22px;
+  text-align: center;
+}
+
+/* ─── Smart Meter button ─────────────────────────────────────────────────── */
+
+.smart-meter-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(201, 163, 10, 0.13);
+  border: 1.5px solid rgba(201, 163, 10, 0.5);
+  border-radius: 12px;
+  color: #C9A30A;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.smart-meter-btn:hover {
+  background: rgba(201, 163, 10, 0.22);
+  border-color: #C9A30A;
+}
+
+/* ─── Smart Meter popup ──────────────────────────────────────────────────── */
+
+.smart-meter-popup {
+  background: var(--bg2);
+  border: 0.5px solid var(--border);
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  max-width: 300px;
+  width: 88%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.smart-meter-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(201, 163, 10, 0.13);
+  border: 1.5px solid rgba(201, 163, 10, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.smart-meter-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.smart-meter-body {
+  font-size: 13.5px;
+  color: var(--text2);
+  line-height: 1.55;
+  margin: 0;
+}
+.smart-meter-dismiss {
+  margin-top: 4px;
+  padding: 10px 32px;
+  border-radius: 10px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.smart-meter-dismiss:hover { opacity: 0.85; }
+
 /* ─── Header icon button ─────────────────────────────────────────────────── */
 
 .header-icon-btn {
