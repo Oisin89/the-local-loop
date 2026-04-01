@@ -1317,14 +1317,16 @@ function calcAuditResult(ans) {
     });
   }
 
-  return { perPersonDay, total, people, recs: recs.slice(0, 3) };
+  const cappedPerPersonDay = Math.min(perPersonDay, 130);
+  return { perPersonDay: cappedPerPersonDay, total, people, recs: recs.slice(0, 3) };
 }
 
 function HouseholdAuditPopup({ user, onComplete }) {
-  const [step, setStep]     = useState(0);
+  const [step, setStep]       = useState(0);
   const [answers, setAnswers] = useState({});
-  const [result, setResult]  = useState(null);
-  const [saving, setSaving]  = useState(false);
+  const [result, setResult]   = useState(null);
+  const [saving, setSaving]   = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const isResult = step === AUDIT_QUESTIONS.length;
 
@@ -1344,19 +1346,20 @@ function HouseholdAuditPopup({ user, onComplete }) {
         loggingScope: answers.loggingScope || "self",
       };
       if (result) {
-        updates.dailyGoal    = result.perPersonDay;
+        updates.dailyGoal     = result.perPersonDay;
         updates.householdSize = result.people;
       }
       await updateDoc(doc(db, "users", user.uid), updates);
     } catch {}
-    onComplete();
+    setSaving(false);
+    setShowConfirm(true);
   };
 
   const progress = (step / AUDIT_QUESTIONS.length) * 100;
 
   return (
     <div className="settings-overlay">
-      <div className="settings-sheet" style={{ maxHeight: "92%" }}>
+      <div className="settings-sheet" style={{ maxHeight: "92%", position: "relative" }}>
         <div className="settings-sheet-handle" />
 
         {!isResult ? (
@@ -1462,6 +1465,49 @@ function HouseholdAuditPopup({ user, onComplete }) {
             </button>
           </div>
         ) : null}
+
+        {/* Goal-set confirmation popup */}
+        {showConfirm && result && (() => {
+          const goal    = result.perPersonDay;
+          const savePct = Math.round(((150 - goal) / 150) * 100);
+          return (
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: "inherit",
+              background: "rgba(0,0,0,0.55)", display: "flex",
+              alignItems: "center", justifyContent: "center", zIndex: 10,
+              padding: 24,
+            }}>
+              <div style={{
+                background: "var(--bg)", borderRadius: 20,
+                padding: "28px 24px 24px", textAlign: "center",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                border: "0.5px solid var(--border)", maxWidth: 300,
+              }}>
+                <div style={{ fontSize: 42, marginBottom: 12 }}>🎉</div>
+                <p style={{
+                  fontSize: 15, fontWeight: 600, color: "var(--text)",
+                  lineHeight: 1.5, marginBottom: 8,
+                }}>
+                  From your answers we have set your daily personal allowance at{" "}
+                  <span style={{ color: "var(--accent)", fontFamily: "var(--mono)" }}>
+                    {goal} L
+                  </span>{" "}
+                  per day
+                </p>
+                <p style={{
+                  fontSize: 13, color: "var(--text2)", lineHeight: 1.5, marginBottom: 22,
+                }}>
+                  {savePct > 0
+                    ? `That's a saving of ${savePct}% compared to the UK average of 150 L/day. Great work! 💧`
+                    : `That matches the UK average of 150 L/day — let's see if we can improve it! 💧`}
+                </p>
+                <button className="add-btn" onClick={onComplete}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
