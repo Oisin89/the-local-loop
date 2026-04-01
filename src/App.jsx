@@ -112,7 +112,8 @@ function groupByDay(activities) {
   return map;
 }
 
-function computeStreak(activities, dailyGoal) {
+function computeStreak(activities, dailyGoal, householdSize = 1, loggingScope = "self") {
+  const effectiveGoal = loggingScope === "household" ? dailyGoal * Math.max(1, householdSize) : dailyGoal;
   const now = new Date();
   let streak = 0;
   for (let i = 0; i < 60; i++) {
@@ -121,7 +122,7 @@ function computeStreak(activities, dailyGoal) {
     const key = d.toDateString();
     const dayActs = activities.filter(a => { const ad = toDate(a.createdAt); return ad && ad.toDateString() === key; });
     const dayTotal = dayActs.reduce((s, a) => s + (a.litres || 0), 0);
-    if (dayActs.length > 0 && dayTotal <= dailyGoal) {
+    if (dayActs.length > 0 && dayTotal <= effectiveGoal) {
       streak++;
     } else if (i === 0 && dayActs.length === 0) {
       continue;
@@ -426,7 +427,7 @@ function WaterDropMascot({ mood = 'idle' }) {
 
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
-function Gauge({ used, goal, streak = 0 }) {
+function Gauge({ used, goal, streak = 0, householdMode = false }) {
   const rawPct = goal > 0 ? Math.round((used / goal) * 100) : 0;
   const over = rawPct > 100;
   const fillPct = Math.min(rawPct, 100);
@@ -516,7 +517,7 @@ function Gauge({ used, goal, streak = 0 }) {
           {used} L
         </div>
         <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>
-          of {goal} L daily goal
+          of {goal} L {householdMode ? "household goal" : "daily goal"}
         </div>
         {/* Status message + streak badge */}
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 7, minWidth: 0 }}>
@@ -683,7 +684,8 @@ function toDate(ts) {
   return ts.toDate ? ts.toDate() : new Date(ts);
 }
 
-function useWeekStats(activities, dailyGoal, now) {
+function useWeekStats(activities, dailyGoal, now, householdSize = 1, loggingScope = "self") {
+  const effectiveGoal = loggingScope === "household" ? dailyGoal * Math.max(1, householdSize) : dailyGoal;
   const thisWeek = getWeekRange(now, 0);
   const lastWeek = getWeekRange(now, -1);
 
@@ -710,7 +712,7 @@ function useWeekStats(activities, dailyGoal, now) {
     const key = d.toDateString();
     dayTotals[key] = (dayTotals[key] || 0) + (a.litres || 0);
   });
-  const goalsMet = Object.values(dayTotals).filter(t => t <= dailyGoal).length;
+  const goalsMet = Object.values(dayTotals).filter(t => t <= effectiveGoal).length;
 
   // Streak: consecutive days (ending today or yesterday) where goal was met
   let streak = 0;
@@ -723,7 +725,7 @@ function useWeekStats(activities, dailyGoal, now) {
       return d && d.toDateString() === key;
     });
     const dayTotal = dayActivities.reduce((s, a) => s + (a.litres || 0), 0);
-    if (dayActivities.length > 0 && dayTotal <= dailyGoal) {
+    if (dayActivities.length > 0 && dayTotal <= effectiveGoal) {
       streak++;
     } else if (i === 0 && dayActivities.length === 0) {
       // Today has no activities yet — skip, don't break streak
@@ -1246,6 +1248,15 @@ const AUDIT_QUESTIONS = [
       { label: "No garden / rarely",     value: 0  },
     ],
   },
+  {
+    id: "loggingScope",
+    emoji: "👥",
+    q: "Will you be logging water usage just for yourself, or for your whole household?",
+    options: [
+      { label: "Just for me",              value: "self"      },
+      { label: "For the whole household",  value: "household" },
+    ],
+  },
 ];
 
 function calcAuditResult(ans) {
@@ -1327,7 +1338,17 @@ function HouseholdAuditPopup({ user, onComplete }) {
 
   const handleDone = async () => {
     setSaving(true);
-    try { await updateDoc(doc(db, "users", user.uid), { auditCompleted: true }); } catch {}
+    try {
+      const updates = {
+        auditCompleted: true,
+        loggingScope: answers.loggingScope || "self",
+      };
+      if (result) {
+        updates.dailyGoal    = result.perPersonDay;
+        updates.householdSize = result.people;
+      }
+      await updateDoc(doc(db, "users", user.uid), updates);
+    } catch {}
     onComplete();
   };
 
@@ -1395,6 +1416,24 @@ function HouseholdAuditPopup({ user, onComplete }) {
                   ? `You're ${150 - result.perPersonDay} L/day below the UK average. Great start! 🎉`
                   : `You're ${result.perPersonDay - 150} L/day above the UK average. There is room to improve.`}
               </div>
+            </div>
+
+            {/* Logging scope note */}
+            <div className="card-block" style={{ marginBottom: 16, padding: "11px 14px", background: "var(--bg2)" }}>
+              {answers.loggingScope === "household" && result.people > 1 ? (
+                <p style={{ fontSize: 12, color: "var(--text2)", margin: 0, lineHeight: 1.6 }}>
+                  📌 You're logging for the <strong>whole household</strong>. Your daily goal will be set to{" "}
+                  <strong style={{ color: "var(--text)" }}>{result.perPersonDay} L per person</strong>, so your gauge
+                  will track against a combined target of{" "}
+                  <strong style={{ color: "var(--accent)" }}>{result.perPersonDay * result.people} L/day</strong>.
+                  Leaderboard and community stats will always use per-person figures for a fair comparison.
+                </p>
+              ) : (
+                <p style={{ fontSize: 12, color: "var(--text2)", margin: 0, lineHeight: 1.6 }}>
+                  📌 You're logging <strong>your own usage</strong>. Your daily goal will be set to{" "}
+                  <strong style={{ color: "var(--accent)" }}>{result.perPersonDay} L/day</strong>.
+                </p>
+              )}
             </div>
 
             {/* Recommendations */}
@@ -1568,7 +1607,7 @@ function SettingsPopup({ user, dailyGoal, onGoalChange, notificationsEnabled, un
 
 // ─── Home Tab ─────────────────────────────────────────────────────────────────
 
-function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, unreadCount = 0, onOpenNotifications, auditCompleted, onOpenAudit }) {
+function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, unreadCount = 0, onOpenNotifications, auditCompleted, onOpenAudit, householdSize = 1, loggingScope = "self" }) {
   const now = useLiveDate();
   const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const firstName = user?.displayName?.split(" ")[0] || "there";
@@ -1579,7 +1618,10 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
     .filter(a => isSameDay(a.createdAt, now))
     .reduce((sum, a) => sum + (a.litres || 0), 0);
 
-  const { thisTotal, vsLastWeek, goalsMet, streak } = useWeekStats(activities, dailyGoal, now);
+  // When logging for the whole household, scale the goal up accordingly
+  const gaugeGoal = loggingScope === "household" ? dailyGoal * Math.max(1, householdSize) : dailyGoal;
+
+  const { thisTotal, vsLastWeek, goalsMet, streak } = useWeekStats(activities, dailyGoal, now, householdSize, loggingScope);
 
   const recent = activities.slice(0, 5);
 
@@ -1609,7 +1651,7 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
         </div>
       </div>
 
-      <Gauge used={todayTotal} goal={dailyGoal} streak={streak} />
+      <Gauge used={todayTotal} goal={gaugeGoal} streak={streak} householdMode={loggingScope === "household" && householdSize > 1} />
 
       <QuickLog user={user} />
 
@@ -1667,7 +1709,7 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
         )}
       </div>
 
-      <PersonalBest activities={activities} dailyGoal={dailyGoal} />
+      <PersonalBest activities={activities} dailyGoal={gaugeGoal} />
 
       {/* ── This Week stats ── */}
       <div className="section">
@@ -1688,7 +1730,7 @@ function HomeTab({ user, activities, dailyGoal, onGoalChange, onOpenSettings, un
         </div>
       </div>
 
-      <WeeklyChart activities={activities} dailyGoal={dailyGoal} now={now} />
+      <WeeklyChart activities={activities} dailyGoal={gaugeGoal} now={now} />
 
       <div style={{ padding: "4px 20px 28px", textAlign: "center" }}>
         <p style={{ fontSize: 11, color: "var(--text2)", lineHeight: 1.6, opacity: 0.65 }}>
@@ -1769,6 +1811,7 @@ export default function App() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [units,                setUnits]                = useState("litres");
   const [householdSize,        setHouseholdSize]        = useState(2);
+  const [loggingScope,         setLoggingScope]         = useState("self");
   const [showSettings,         setShowSettings]         = useState(false);
   const [notifications,        setNotifications]        = useState([]);
   const [showNotifications,    setShowNotifications]    = useState(false);
@@ -1808,6 +1851,7 @@ export default function App() {
       if (data.notificationsEnabled != null) setNotificationsEnabled(data.notificationsEnabled);
       if (data.units != null)                setUnits(data.units);
       if (data.householdSize != null)        setHouseholdSize(data.householdSize);
+      if (data.loggingScope)                 setLoggingScope(data.loggingScope);
     });
     return unsub;
   }, [user]);
@@ -1865,11 +1909,11 @@ export default function App() {
 
   // Compute earned badges reactively
   const earnedBadgeIds = useMemo(() => {
-    const streak = computeStreak(activities, dailyGoal);
+    const streak = computeStreak(activities, dailyGoal, householdSize, loggingScope);
     return BADGE_DEFS
       .filter(b => b.check({ activities, dailyGoal, streak, challengesCompleted, challengeWins, quizCorrectCount, communityGoalPct }))
       .map(b => b.id);
-  }, [activities, dailyGoal, challengesCompleted, challengeWins, quizCorrectCount, communityGoalPct]);
+  }, [activities, dailyGoal, householdSize, loggingScope, challengesCompleted, challengeWins, quizCorrectCount, communityGoalPct]);
 
   // Badge notification generator — runs after earnedBadgeIds is computed
   useEffect(() => {
@@ -1915,7 +1959,7 @@ export default function App() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} unreadCount={notifications.filter(n => !n.read).length} onOpenNotifications={() => setShowNotifications(true)} auditCompleted={auditCompleted} onOpenAudit={() => setShowAudit(true)} />;
+      case "home":       return <HomeTab user={user} activities={activities} dailyGoal={dailyGoal} onGoalChange={setDailyGoal} onOpenSettings={() => setShowSettings(true)} unreadCount={notifications.filter(n => !n.read).length} onOpenNotifications={() => setShowNotifications(true)} auditCompleted={auditCompleted} onOpenAudit={() => setShowAudit(true)} householdSize={householdSize} loggingScope={loggingScope} />;
       case "activities": return <ActivitiesTab currentUser={user} />;
       case "community":  return <CommunityTab currentUser={user} />;
       case "profile":    return <ProfileTab user={user} earnedBadgeIds={earnedBadgeIds} />;

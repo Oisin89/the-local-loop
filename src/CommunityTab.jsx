@@ -234,24 +234,54 @@ function CommunityImpactBoard() {
 
     const run = async () => {
       try {
-        // Fetch all activities across every user, then filter by date in JS.
-        // This avoids the need for a collection-group index on createdAt.
-        const snap = await getDocs(collectionGroup(db, "activities"));
-        const thisDocs = snap.docs.filter(d => {
+        // Fetch activities and user profiles in parallel so we can normalise
+        // household-scope loggers to per-person figures for a fair comparison.
+        const [actsSnap, usersSnap] = await Promise.all([
+          getDocs(collectionGroup(db, "activities")),
+          getDocs(collection(db, "users")),
+        ]);
+
+        // Build a map of uid → { householdSize, loggingScope }
+        const profiles = {};
+        usersSnap.forEach(d => {
+          const p = d.data();
+          profiles[d.id] = {
+            householdSize: p.householdSize || 1,
+            loggingScope:  p.loggingScope  || "self",
+          };
+        });
+
+        const thisDocs = actsSnap.docs.filter(d => {
           const ts = d.data().createdAt;
           if (!ts) return false;
           const date = ts.toDate ? ts.toDate() : new Date(ts);
           return date >= monthStart;
         });
-        const totalLitres = Math.round(thisDocs.reduce((s, d) => s + (d.data().litres || 0), 0));
+
+        // Per-person litres: divide each activity by household size if logging for whole house
+        const perPersonLitres = Math.round(thisDocs.reduce((s, d) => {
+          const uid     = d.ref.parent.parent.id;
+          const profile = profiles[uid] || { householdSize: 1, loggingScope: "self" };
+          const persons = profile.loggingScope === "household" ? Math.max(1, profile.householdSize) : 1;
+          return s + (d.data().litres || 0) / persons;
+        }, 0));
+
+        // Effective member count: sum of actual people being tracked
         const userIds = new Set(thisDocs.map(d => d.ref.parent.parent.id));
+        const effectivePersons = [...userIds].reduce((s, uid) => {
+          const profile = profiles[uid] || { householdSize: 1, loggingScope: "self" };
+          return s + (profile.loggingScope === "household" ? Math.max(1, profile.householdSize) : 1);
+        }, 0);
+
         const activeUsers = userIds.size;
         const daysElapsed = Math.max(1, now.getDate());
-        const ukAvgTotal = 150 * activeUsers * daysElapsed;
-        const savedVsUK = Math.max(0, ukAvgTotal - totalLitres);
-        const avgPerDay = activeUsers > 0 ? Math.round(totalLitres / (activeUsers * daysElapsed)) : 0;
+        const ukAvgTotal  = 150 * effectivePersons * daysElapsed;
+        const savedVsUK   = Math.max(0, ukAvgTotal - perPersonLitres);
+        const avgPerDay   = effectivePersons > 0
+          ? Math.round(perPersonLitres / (effectivePersons * daysElapsed))
+          : 0;
         const pctVsUK = avgPerDay > 0 ? Math.round(((150 - avgPerDay) / 150) * 100) : null;
-        setStats({ totalLitres, activeUsers, savedVsUK, avgPerDay, pctVsUK });
+        setStats({ totalLitres: perPersonLitres, activeUsers, savedVsUK, avgPerDay, pctVsUK });
       } catch (e) {
         console.error("Impact board error:", e);
       }
@@ -387,15 +417,18 @@ function useLeaderboard(currentUser, friends) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // Returns per-person monthly total (raw total ÷ household size if logging for whole house)
     const fetchTotal = async (uid) => {
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, "users", uid, "activities"),
-            where("createdAt", ">=", monthStart)
-          )
-        );
-        return snap.docs.reduce((s, d) => s + (d.data().litres || 0), 0);
+        const [actsSnap, userSnap] = await Promise.all([
+          getDocs(query(collection(db, "users", uid, "activities"), where("createdAt", ">=", monthStart))),
+          getDoc(doc(db, "users", uid)),
+        ]);
+        const rawTotal = actsSnap.docs.reduce((s, d) => s + (d.data().litres || 0), 0);
+        const profile  = userSnap.data() || {};
+        const persons  = (profile.loggingScope === "household" && profile.householdSize > 1)
+          ? profile.householdSize : 1;
+        return Math.round(rawTotal / persons);
       } catch {
         return null; // permission denied or no data
       }
@@ -536,13 +569,20 @@ function useStreakLeaderboard(currentUser, friends) {
           getDocs(query(collection(db, "users", uid, "activities"), where("createdAt", ">=", cutoff))),
           getDoc(doc(db, "users", uid)),
         ]);
-        const activities = actsSnap.docs.map(d => d.data());
-        const dailyGoal = userSnap.data()?.dailyGoal || 150;
-        return { activities, dailyGoal };
+        const activities   = actsSnap.docs.map(d => d.data());
+        const profile      = userSnap.data() || {};
+        const dailyGoal    = profile.dailyGoal || 150;
+        const householdSize = profile.householdSize || 1;
+        const loggingScope  = profile.loggingScope  || "self";
+        // Effective goal: scale up if user is logging for whole household
+        const effectiveGoal = loggingScope === "household"
+          ? dailyGoal * Math.max(1, householdSize)
+          : dailyGoal;
+        return { activities, effectiveGoal };
       } catch { return null; }
     };
 
-    const calcStreak = (activities, dailyGoal) => {
+    const calcStreak = (activities, effectiveGoal) => {
       const now = new Date();
       let streak = 0;
       for (let i = 0; i < 61; i++) {
@@ -554,7 +594,7 @@ function useStreakLeaderboard(currentUser, friends) {
           return ad.toDateString() === key;
         });
         const total = dayActs.reduce((s, a) => s + (a.litres || 0), 0);
-        if (dayActs.length > 0 && total <= dailyGoal) { streak++; }
+        if (dayActs.length > 0 && total <= effectiveGoal) { streak++; }
         else if (i === 0 && dayActs.length === 0) { continue; }
         else { break; }
       }
@@ -571,7 +611,7 @@ function useStreakLeaderboard(currentUser, friends) {
         participants.map(async (p) => {
           const data = await fetchData(p.uid);
           if (!data) return null;
-          return { ...p, streak: calcStreak(data.activities, data.dailyGoal) };
+          return { ...p, streak: calcStreak(data.activities, data.effectiveGoal) };
         })
       );
       setStreakRankings(
